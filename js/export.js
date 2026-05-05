@@ -90,6 +90,17 @@ const ExportEngine = {
         this.downloadXlsx(data, null, 'variance_report.xlsx');
     },
 
+    dedupeBy(rows, keyFn) {
+        const map = new Map();
+        for (const row of rows) {
+            const key = keyFn(row);
+            if (!key.includes('undefined') && !key.includes('null')) {
+                map.set(key, row);
+            }
+        }
+        return [...map.values()];
+    },
+
     generateTemplates() {
         const wb = XLSX.utils.book_new();
 
@@ -197,7 +208,7 @@ const ExportEngine = {
 
         const daily = PnlBuilder.dailyResults;
         if (daily.length) {
-            await SupabaseClient.writeDailyForecast(runId, daily.map(f => ({
+            const dailyRows = this.dedupeBy(daily.map(f => ({
                 venue_id: venueIdMap[f.venue_key],
                 forecast_date: f.forecast_date,
                 forecast_transactions: f.forecast_transactions,
@@ -223,7 +234,9 @@ const ExportEngine = {
                 occupancy_total: f.occupancy_total,
                 gross_profit: f.gross_profit,
                 venue_contribution: f.venue_contribution
-            })), (done, total) => {
+            })), r => `${r.venue_id}_${r.forecast_date}`);
+
+            await SupabaseClient.writeDailyForecast(runId, dailyRows, (done, total) => {
                 const pct = 15 + (done / total) * 70;
                 onProgress(pct, `Uploading forecasts... ${done}/${total}`);
             });
@@ -232,7 +245,7 @@ const ExportEngine = {
 
         const monthly = PnlBuilder.monthlySummary;
         if (monthly.length) {
-            await SupabaseClient.writeMonthlySummary(runId, monthly.map(m => ({
+            const monthlyRows = this.dedupeBy(monthly.map(m => ({
                 venue_id: venueIdMap[m.venue_key],
                 budget_month: m.budget_month,
                 net_sales: m.net_sales,
@@ -243,7 +256,9 @@ const ExportEngine = {
                 venue_contribution: m.venue_contribution,
                 transaction_count: m.transaction_count,
                 trading_days: m.trading_days
-            })));
+            })), r => `${r.venue_id}_${r.budget_month}`);
+
+            await SupabaseClient.writeMonthlySummary(runId, monthlyRows);
         }
         onProgress(100, 'Complete!');
         return runId;
