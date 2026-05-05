@@ -3,8 +3,16 @@ const SupabaseClient = {
 
     init(url, key) {
         if (!url || !key) return false;
-        this.client = supabase.createClient(url, key);
+        const cleanUrl = this.normaliseUrl(url);
+        this.client = supabase.createClient(cleanUrl, key);
         return true;
+    },
+
+    normaliseUrl(url) {
+        return String(url || '')
+            .trim()
+            .replace(/\/rest\/v1\/?$/i, '')
+            .replace(/\/+$/, '');
     },
 
     async testConnection() {
@@ -112,7 +120,7 @@ const SupabaseClient = {
 
     getSchemaSQL() {
         return `
--- Frozen Yoghurt QSR Budget Model — Supabase Schema
+-- Frozen Yoghurt QSR Budget Model â€” Supabase Schema
 
 CREATE TABLE IF NOT EXISTS venues (
     venue_id        SERIAL PRIMARY KEY,
