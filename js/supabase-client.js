@@ -104,11 +104,13 @@ const SupabaseClient = {
 
     async _batchUpsert(table, rows, onConflict, onProgress) {
         const batchSize = CONFIG.SUPABASE_BATCH_SIZE;
-        const total = rows.length;
+        const conflictColumns = onConflict.split(',').map(c => c.trim()).filter(Boolean);
+        const dedupedRows = this._dedupeConflictRows(rows, conflictColumns);
+        const total = dedupedRows.length;
         let done = 0;
 
         for (let i = 0; i < total; i += batchSize) {
-            const batch = rows.slice(i, i + batchSize);
+            const batch = dedupedRows.slice(i, i + batchSize);
             const { error } = await this.client
                 .from(table)
                 .upsert(batch, { onConflict });
@@ -116,6 +118,17 @@ const SupabaseClient = {
             done += batch.length;
             if (onProgress) onProgress(done, total);
         }
+    },
+
+    _dedupeConflictRows(rows, conflictColumns) {
+        if (!conflictColumns.length) return rows;
+        const map = new Map();
+        for (const row of rows) {
+            const keyParts = conflictColumns.map(col => row[col]);
+            if (keyParts.some(v => v === undefined || v === null || v === '')) continue;
+            map.set(keyParts.join('|'), row);
+        }
+        return [...map.values()];
     },
 
     getSchemaSQL() {
