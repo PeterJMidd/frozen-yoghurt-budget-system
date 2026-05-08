@@ -289,6 +289,10 @@ const ExportEngine = {
             await SupabaseClient.writeMonthlyAccountLines(runId, monthlyAccountRows);
         }
         onProgress(100, 'Complete!');
-        return runId;
+        return {
+            runId,
+            dailyAccountRows: dailyAccountRows.length,
+            monthlyAccountRows: monthlyAccountRows.length
+        };
     }
 };

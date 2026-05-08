@@ -19,6 +19,13 @@ const SupabaseClient = {
         if (!this.client) throw new Error('Supabase not initialised');
         const { data, error } = await this.client.from('budget_runs').select('run_id').limit(1);
         if (error) throw error;
+        const { error: accountLinesError } = await this.client
+            .from('daily_forecast_account_lines')
+            .select('run_id')
+            .limit(1);
+        if (accountLinesError) {
+            throw new Error(`${accountLinesError.message}. Run the updated schema SQL so daily account-line output tables exist.`);
+        }
         return true;
     },
 
@@ -297,10 +304,169 @@ CREATE TABLE IF NOT EXISTS monthly_summary (
     PRIMARY KEY (run_id, venue_id, budget_month)
 );
 
+CREATE TABLE IF NOT EXISTS daily_forecast_account_lines (
+    run_id                 INT REFERENCES budget_runs(run_id),
+    venue_id               INT REFERENCES venues(venue_id),
+    forecast_date          DATE NOT NULL,
+    account_code           TEXT NOT NULL,
+    account_name           TEXT NOT NULL,
+    account_type           TEXT,
+    amount                 NUMERIC(14,2),
+    forecast_transactions  INT,
+    avg_ticket             NUMERIC(8,2),
+    ramp_up_multiplier     NUMERIC(8,4),
+    growth_multiplier      NUMERIC(8,4),
+    source                 TEXT,
+    similar_venue_key      TEXT,
+    PRIMARY KEY (run_id, venue_id, forecast_date, account_code)
+);
+
+CREATE TABLE IF NOT EXISTS monthly_summary_account_lines (
+    run_id            INT REFERENCES budget_runs(run_id),
+    venue_id          INT REFERENCES venues(venue_id),
+    budget_month      DATE NOT NULL,
+    account_code      TEXT NOT NULL,
+    account_name      TEXT NOT NULL,
+    account_type      TEXT,
+    amount            NUMERIC(14,2),
+    transaction_count INT,
+    trading_days      INT,
+    PRIMARY KEY (run_id, venue_id, budget_month, account_code)
+);
+
 CREATE INDEX IF NOT EXISTS idx_daily_forecast_date ON daily_forecast(run_id, forecast_date);
 CREATE INDEX IF NOT EXISTS idx_daily_forecast_venue ON daily_forecast(run_id, venue_id);
+CREATE INDEX IF NOT EXISTS idx_daily_account_lines_date ON daily_forecast_account_lines(run_id, forecast_date);
+CREATE INDEX IF NOT EXISTS idx_daily_account_lines_account ON daily_forecast_account_lines(run_id, account_code);
+CREATE INDEX IF NOT EXISTS idx_monthly_account_lines_month ON monthly_summary_account_lines(run_id, budget_month);
+CREATE INDEX IF NOT EXISTS idx_monthly_account_lines_account ON monthly_summary_account_lines(run_id, account_code);
 CREATE INDEX IF NOT EXISTS idx_sales_history_date ON sales_history(sale_date);
 CREATE INDEX IF NOT EXISTS idx_weather_state_date ON weather_data(state, observation_date);
+
+GRANT USAGE ON SCHEMA public TO anon;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO anon;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+ALTER TABLE venues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE venue_ramp_up ENABLE ROW LEVEL SECURITY;
+ALTER TABLE budget_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sales_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE weather_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seasonality_indices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE prior_pnl ENABLE ROW LEVEL SECURITY;
+ALTER TABLE avg_ticket_assumptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE labour_assumptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cogs_assumptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rent_assumptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_forecast ENABLE ROW LEVEL SECURITY;
+ALTER TABLE monthly_summary ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_forecast_account_lines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE monthly_summary_account_lines ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "anon read venues" ON venues;
+CREATE POLICY "anon read venues" ON venues FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert venues" ON venues;
+CREATE POLICY "anon insert venues" ON venues FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update venues" ON venues;
+CREATE POLICY "anon update venues" ON venues FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read venue_ramp_up" ON venue_ramp_up;
+CREATE POLICY "anon read venue_ramp_up" ON venue_ramp_up FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert venue_ramp_up" ON venue_ramp_up;
+CREATE POLICY "anon insert venue_ramp_up" ON venue_ramp_up FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update venue_ramp_up" ON venue_ramp_up;
+CREATE POLICY "anon update venue_ramp_up" ON venue_ramp_up FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read budget_runs" ON budget_runs;
+CREATE POLICY "anon read budget_runs" ON budget_runs FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert budget_runs" ON budget_runs;
+CREATE POLICY "anon insert budget_runs" ON budget_runs FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update budget_runs" ON budget_runs;
+CREATE POLICY "anon update budget_runs" ON budget_runs FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read sales_history" ON sales_history;
+CREATE POLICY "anon read sales_history" ON sales_history FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert sales_history" ON sales_history;
+CREATE POLICY "anon insert sales_history" ON sales_history FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update sales_history" ON sales_history;
+CREATE POLICY "anon update sales_history" ON sales_history FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read weather_data" ON weather_data;
+CREATE POLICY "anon read weather_data" ON weather_data FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert weather_data" ON weather_data;
+CREATE POLICY "anon insert weather_data" ON weather_data FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update weather_data" ON weather_data;
+CREATE POLICY "anon update weather_data" ON weather_data FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read seasonality_indices" ON seasonality_indices;
+CREATE POLICY "anon read seasonality_indices" ON seasonality_indices FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert seasonality_indices" ON seasonality_indices;
+CREATE POLICY "anon insert seasonality_indices" ON seasonality_indices FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update seasonality_indices" ON seasonality_indices;
+CREATE POLICY "anon update seasonality_indices" ON seasonality_indices FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read prior_pnl" ON prior_pnl;
+CREATE POLICY "anon read prior_pnl" ON prior_pnl FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert prior_pnl" ON prior_pnl;
+CREATE POLICY "anon insert prior_pnl" ON prior_pnl FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update prior_pnl" ON prior_pnl;
+CREATE POLICY "anon update prior_pnl" ON prior_pnl FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read avg_ticket_assumptions" ON avg_ticket_assumptions;
+CREATE POLICY "anon read avg_ticket_assumptions" ON avg_ticket_assumptions FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert avg_ticket_assumptions" ON avg_ticket_assumptions;
+CREATE POLICY "anon insert avg_ticket_assumptions" ON avg_ticket_assumptions FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update avg_ticket_assumptions" ON avg_ticket_assumptions;
+CREATE POLICY "anon update avg_ticket_assumptions" ON avg_ticket_assumptions FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read labour_assumptions" ON labour_assumptions;
+CREATE POLICY "anon read labour_assumptions" ON labour_assumptions FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert labour_assumptions" ON labour_assumptions;
+CREATE POLICY "anon insert labour_assumptions" ON labour_assumptions FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update labour_assumptions" ON labour_assumptions;
+CREATE POLICY "anon update labour_assumptions" ON labour_assumptions FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read cogs_assumptions" ON cogs_assumptions;
+CREATE POLICY "anon read cogs_assumptions" ON cogs_assumptions FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert cogs_assumptions" ON cogs_assumptions;
+CREATE POLICY "anon insert cogs_assumptions" ON cogs_assumptions FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update cogs_assumptions" ON cogs_assumptions;
+CREATE POLICY "anon update cogs_assumptions" ON cogs_assumptions FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read rent_assumptions" ON rent_assumptions;
+CREATE POLICY "anon read rent_assumptions" ON rent_assumptions FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert rent_assumptions" ON rent_assumptions;
+CREATE POLICY "anon insert rent_assumptions" ON rent_assumptions FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update rent_assumptions" ON rent_assumptions;
+CREATE POLICY "anon update rent_assumptions" ON rent_assumptions FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read daily_forecast" ON daily_forecast;
+CREATE POLICY "anon read daily_forecast" ON daily_forecast FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert daily_forecast" ON daily_forecast;
+CREATE POLICY "anon insert daily_forecast" ON daily_forecast FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update daily_forecast" ON daily_forecast;
+CREATE POLICY "anon update daily_forecast" ON daily_forecast FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read monthly_summary" ON monthly_summary;
+CREATE POLICY "anon read monthly_summary" ON monthly_summary FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert monthly_summary" ON monthly_summary;
+CREATE POLICY "anon insert monthly_summary" ON monthly_summary FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update monthly_summary" ON monthly_summary;
+CREATE POLICY "anon update monthly_summary" ON monthly_summary FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read daily_forecast_account_lines" ON daily_forecast_account_lines;
+CREATE POLICY "anon read daily_forecast_account_lines" ON daily_forecast_account_lines FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert daily_forecast_account_lines" ON daily_forecast_account_lines;
+CREATE POLICY "anon insert daily_forecast_account_lines" ON daily_forecast_account_lines FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update daily_forecast_account_lines" ON daily_forecast_account_lines;
+CREATE POLICY "anon update daily_forecast_account_lines" ON daily_forecast_account_lines FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read monthly_summary_account_lines" ON monthly_summary_account_lines;
+CREATE POLICY "anon read monthly_summary_account_lines" ON monthly_summary_account_lines FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert monthly_summary_account_lines" ON monthly_summary_account_lines;
+CREATE POLICY "anon insert monthly_summary_account_lines" ON monthly_summary_account_lines FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update monthly_summary_account_lines" ON monthly_summary_account_lines;
+CREATE POLICY "anon update monthly_summary_account_lines" ON monthly_summary_account_lines FOR UPDATE TO anon USING (true) WITH CHECK (true);
 `;
     }
 };

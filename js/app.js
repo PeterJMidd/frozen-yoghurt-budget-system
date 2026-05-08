@@ -120,11 +120,11 @@ const App = {
             const text = progress.querySelector('.progress-text');
             progress.style.display = 'block';
             try {
-                const runId = await ExportEngine.pushToSupabase((pct, msg) => {
+                const result = await ExportEngine.pushToSupabase((pct, msg) => {
                     fill.style.width = `${pct}%`;
                     text.textContent = msg;
                 });
-                text.textContent = `Done! Run ID: ${runId}`;
+                text.textContent = `Done! Run ID: ${result.runId} | ${result.dailyAccountRows.toLocaleString()} daily account lines pushed`;
             } catch (err) {
                 text.textContent = `Error: ${err.message}`;
                 fill.style.width = '0%';
