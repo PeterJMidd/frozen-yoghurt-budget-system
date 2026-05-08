@@ -162,6 +162,9 @@ const ExcelParser = {
         const errors = [];
         const venues = [];
         const rampUp = {};
+        const monthlyGrowth = {};
+        const newVenueAssumptions = {};
+        const venueByKey = {};
 
         const venueRows = this.sheetToRows(wb, 'Venues') || this.sheetToRows(wb);
         for (const row of venueRows) {
@@ -177,13 +180,15 @@ const ExcelParser = {
                 continue;
             }
 
-            venues.push({
+            const venue = {
                 venue_name: name,
                 venue_key: this.normaliseVenueName(name),
                 state,
                 opening_date: openingDate,
                 is_active: isActive
-            });
+            };
+            venues.push(venue);
+            venueByKey[venue.venue_key] = venue;
         }
 
         const rampSheet = wb.Sheets['Ramp Up'] || wb.Sheets['RampUp'] || wb.Sheets['Ramp_Up'];
@@ -204,7 +209,75 @@ const ExcelParser = {
             }
         }
 
-        return { venues, rampUp, errors };
+        const growthSheet = wb.Sheets['Monthly Growth'] || wb.Sheets['Growth'] || wb.Sheets['Sales Growth'];
+        if (growthSheet) {
+            const growthData = XLSX.utils.sheet_to_json(growthSheet, { header: 1 });
+            if (growthData.length >= 2) {
+                for (let r = 1; r < growthData.length; r++) {
+                    const row = growthData[r];
+                    const name = String(row[0] || '').trim();
+                    if (!name) continue;
+                    const key = this.normaliseVenueName(name);
+                    monthlyGrowth[key] = [];
+                    for (let m = 1; m <= 18; m++) {
+                        const val = Number(row[m]);
+                        monthlyGrowth[key].push(isNaN(val) ? 0 : val / 100);
+                    }
+                }
+            }
+        }
+
+        const newVenueSheet = wb.Sheets['New Venues'] || wb.Sheets['New Stores'];
+        if (newVenueSheet) {
+            const rows = XLSX.utils.sheet_to_json(newVenueSheet, { defval: null, cellDates: true });
+            for (const row of rows) {
+                const name = String(row.venue_name || row['Venue Name'] || row['Venue'] || '').trim();
+                if (!name) continue;
+
+                const state = String(row.state || row['State'] || '').trim().toUpperCase();
+                const openingDate = this.formatDate(row.opening_date || row['Opening Date'] || row['opening date']);
+                const avgMonthlySales = Number(row.avg_monthly_sales || row['Average Monthly Sales'] || row['Avg Monthly Sales'] || 0);
+                const similarVenue = String(row.similar_venue || row['Similar Venue'] || row['Similar Site'] || '').trim();
+                const key = this.normaliseVenueName(name);
+                const similarKey = this.normaliseVenueName(similarVenue);
+
+                if (!CONFIG.STATES.includes(state)) {
+                    errors.push(`New venue "${name}": invalid state "${state}"`);
+                    continue;
+                }
+                if (!openingDate) {
+                    errors.push(`New venue "${name}": missing opening date`);
+                    continue;
+                }
+
+                if (!venueByKey[key]) {
+                    const venue = {
+                        venue_name: name,
+                        venue_key: key,
+                        state,
+                        opening_date: openingDate,
+                        is_active: true,
+                        is_new_venue: true,
+                        similar_venue_key: similarKey,
+                        avg_monthly_sales: avgMonthlySales
+                    };
+                    venues.push(venue);
+                    venueByKey[key] = venue;
+                }
+
+                newVenueAssumptions[key] = {
+                    venue_key: key,
+                    similar_venue_key: similarKey,
+                    avg_monthly_sales: avgMonthlySales
+                };
+
+                if (!monthlyGrowth[key]) {
+                    monthlyGrowth[key] = Array(CONFIG.RAMP_UP_MONTHS).fill(0.03);
+                }
+            }
+        }
+
+        return { venues, rampUp, monthlyGrowth, newVenueAssumptions, errors };
     },
 
     // 4. Average Ticket: rows=venues, columns=months
@@ -336,13 +409,14 @@ const ExcelParser = {
         if (!venueDetails) return ['Venue Details template must be uploaded first'];
 
         const masterKeys = new Set(venueDetails.venues.map(v => v.venue_key));
+        const newVenueKeys = new Set(Object.keys(venueDetails.newVenueAssumptions || {}));
 
         const checkTemplate = (name, data, keyField) => {
             if (!data) return;
             const keys = new Set();
             for (const r of data) keys.add(r[keyField || 'venue_key']);
             for (const k of keys) {
-                if (!masterKeys.has(k)) {
+                if (!masterKeys.has(k) && !newVenueKeys.has(k)) {
                     errors.push(`${name}: venue "${k}" not found in Venue Details`);
                 }
             }

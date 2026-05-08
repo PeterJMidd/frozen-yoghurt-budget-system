@@ -13,7 +13,8 @@ const RentCalcEngine = {
         }
 
         for (const forecast of dailyForecasts) {
-            const rent = rentMap[forecast.venue_key];
+            const rent = rentMap[forecast.venue_key] ||
+                (forecast.similar_venue_key ? rentMap[forecast.similar_venue_key] : null);
             if (!rent) {
                 forecast.rent_base = 0;
                 forecast.rent_outgoings = 0;

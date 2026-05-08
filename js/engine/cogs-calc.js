@@ -7,7 +7,9 @@ const CogsCalcEngine = {
         }
 
         for (const forecast of dailyForecasts) {
-            const cogs = cogsMap[forecast.venue_key] || {};
+            const cogs = cogsMap[forecast.venue_key] ||
+                (forecast.similar_venue_key ? cogsMap[forecast.similar_venue_key] : null) ||
+                {};
 
             forecast.cogs_food = Math.round(forecast.net_sales * (cogs.food || 0) * 100) / 100;
             forecast.cogs_packaging = Math.round(forecast.net_sales * (cogs.packaging || 0) * 100) / 100;

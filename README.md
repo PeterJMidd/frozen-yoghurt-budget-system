@@ -32,12 +32,13 @@ The `templates/` folder contains FY27-ready workbooks generated from the supplie
 - `01_Sales_History_Template.xlsx`
 - `02_Prior_PnL_Template.xlsx`
 - `03_Venue_Details_Template.xlsx`
+- `03_Venue_Details_Template_v2.xlsx` - updated with monthly growth and new venue assumptions
 - `04_Avg_Ticket_Template.xlsx`
 - `05_Labour_Template.xlsx`
 - `06_COGS_Template.xlsx`
 - `07_Rent_Template.xlsx`
 
-The zip bundle is also included as `templates/frozen-yoghurt-budget-templates-fy27.zip`.
+The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v2.zip`.
 
 ## Backend
 

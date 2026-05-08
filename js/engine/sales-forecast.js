@@ -162,7 +162,7 @@ const SalesForecastEngine = {
         return Math.min(1.0, 0.4 + (monthsOpen * 0.6 / CONFIG.RAMP_UP_MONTHS));
     },
 
-    generateForecasts(venueDetails, avgTicketData, rampUpData, forecastStart, forecastEnd) {
+    generateForecasts(venueDetails, avgTicketData, rampUpData, forecastStart, forecastEnd, monthlyGrowthData = {}, newVenueAssumptions = {}) {
         this.dailyForecasts = [];
 
         const venueMap = {};
@@ -180,7 +180,10 @@ const SalesForecastEngine = {
         for (const venue of venueDetails) {
             if (!venue.is_active) continue;
 
-            const seasonality = this.seasonalityIndices[venue.venue_key];
+            const newVenue = newVenueAssumptions[venue.venue_key];
+            const similarVenueKey = venue.similar_venue_key || newVenue?.similar_venue_key;
+            const seasonality = this.seasonalityIndices[venue.venue_key] ||
+                (similarVenueKey ? this.seasonalityIndices[similarVenueKey] : null);
             const baseDaily = this.baseDailySales[venue.venue_key] || 0;
             const apiData = this.apiForecasts[venue.venue_key];
 
@@ -195,6 +198,9 @@ const SalesForecastEngine = {
                 const monthKey = `${current.getFullYear()}-${String(monthNum).padStart(2, '0')}-01`;
 
                 const rampUp = this.getRampUpMultiplier(venue, dateStr, rampUpData);
+                const growthMultiplier = this.getGrowthMultiplier(
+                    venue, dateStr, forecastStart, monthlyGrowthData, newVenueAssumptions
+                );
 
                 if (rampUp === 0) {
                     current.setDate(current.getDate() + 1);
@@ -227,12 +233,17 @@ const SalesForecastEngine = {
 
                     if (baseDaily > 0) {
                         forecastSales = baseDaily * dowIndex * monthIndex * holidayAdj * weatherIndex * rampUp;
+                    } else if (newVenue?.avg_monthly_sales > 0 || venue.avg_monthly_sales > 0) {
+                        const monthlyBase = newVenue?.avg_monthly_sales || venue.avg_monthly_sales;
+                        const daysInMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+                        forecastSales = (monthlyBase / daysInMonth) * dowIndex * monthIndex * holidayAdj * weatherIndex * rampUp;
                     } else {
                         const networkAvg = this.getNetworkAvgDaily();
                         forecastSales = networkAvg * dowIndex * monthIndex * holidayAdj * weatherIndex * rampUp;
                     }
                 }
 
+                forecastSales *= growthMultiplier;
                 forecastSales = Math.max(0, Math.round(forecastSales * 100) / 100);
 
                 const ticketKey = `${venue.venue_key}_${monthKey}`;
@@ -249,6 +260,8 @@ const SalesForecastEngine = {
                     forecast_transactions: transactions,
                     avg_ticket: avgTicket,
                     ramp_up_multiplier: rampUp,
+                    growth_multiplier: growthMultiplier,
+                    similar_venue_key: similarVenueKey || null,
                     source: (this.useApi && apiData && apiData[dateStr] != null) ? 'api' : 'local'
                 });
 
@@ -257,6 +270,28 @@ const SalesForecastEngine = {
         }
 
         return this.dailyForecasts;
+    },
+
+    getGrowthMultiplier(venue, dateStr, forecastStart, monthlyGrowthData, newVenueAssumptions) {
+        const growth = monthlyGrowthData[venue.venue_key];
+        if (!growth || growth.length === 0) return 1.0;
+
+        const forecastDate = new Date(dateStr);
+        const startDate = (newVenueAssumptions[venue.venue_key] || venue.is_new_venue)
+            ? new Date(venue.opening_date)
+            : new Date(forecastStart);
+
+        if (forecastDate < startDate) return 1.0;
+
+        const monthsElapsed = (forecastDate.getFullYear() - startDate.getFullYear()) * 12 +
+            (forecastDate.getMonth() - startDate.getMonth());
+        const cappedMonth = Math.min(monthsElapsed, growth.length - 1);
+
+        let multiplier = 1.0;
+        for (let i = 0; i <= cappedMonth; i++) {
+            multiplier *= 1 + (growth[i] || 0);
+        }
+        return Math.round(multiplier * 10000) / 10000;
     },
 
     getNetworkAvgDaily() {

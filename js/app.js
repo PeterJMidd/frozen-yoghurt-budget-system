@@ -271,6 +271,8 @@ const App = {
                 salesHistory: salesData.records,
                 avgTicketData: avgTicketData.records,
                 rampUpData: venueData.rampUp || {},
+                monthlyGrowthData: venueData.monthlyGrowth || {},
+                newVenueAssumptions: venueData.newVenueAssumptions || {},
                 labourAssumptions: labourData.records,
                 cogsAssumptions: cogsData.records,
                 rentAssumptions: rentData.records,

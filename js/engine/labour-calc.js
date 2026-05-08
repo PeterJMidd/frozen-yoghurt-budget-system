@@ -6,7 +6,8 @@ const LabourCalcEngine = {
         }
 
         for (const forecast of dailyForecasts) {
-            const labour = labourMap[forecast.venue_key];
+            const labour = labourMap[forecast.venue_key] ||
+                (forecast.similar_venue_key ? labourMap[forecast.similar_venue_key] : null);
             if (!labour) {
                 forecast.crew_labour_hours = 0;
                 forecast.crew_labour_cost = 0;

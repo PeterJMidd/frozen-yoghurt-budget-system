@@ -7,12 +7,13 @@ const PnlBuilder = {
         const {
             venueDetails, salesHistory, avgTicketData, rampUpData,
             labourAssumptions, cogsAssumptions, rentAssumptions,
-            forecastStart, forecastEnd
+            monthlyGrowthData, newVenueAssumptions, forecastStart, forecastEnd
         } = data;
 
         SalesForecastEngine.buildSeasonality(salesHistory, venueDetails);
         const forecasts = SalesForecastEngine.generateForecasts(
-            venueDetails, avgTicketData, rampUpData, forecastStart, forecastEnd
+            venueDetails, avgTicketData, rampUpData, forecastStart, forecastEnd,
+            monthlyGrowthData || {}, newVenueAssumptions || {}
         );
 
         CogsCalcEngine.calculate(forecasts, cogsAssumptions);
