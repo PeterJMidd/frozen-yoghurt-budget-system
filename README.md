@@ -38,7 +38,7 @@ The `templates/` folder contains FY27-ready workbooks generated from the supplie
 - `06_COGS_Template.xlsx`
 - `07_Rent_Template.xlsx`
 
-The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v2.zip`.
+The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v3.zip`.
 
 ## Backend
 
