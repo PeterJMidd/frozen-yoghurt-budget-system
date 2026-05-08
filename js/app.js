@@ -291,11 +291,13 @@ const App = {
 
             const runName = document.getElementById('run-name').value || 'Budget';
             document.getElementById('run-name-display').textContent = runName;
+            const dailyAccountLines = PnlBuilder.dailyResults.length * CONFIG.PNL_LINE_ITEMS.length;
+            const monthlyAccountLines = PnlBuilder.monthlySummary.length * CONFIG.PNL_LINE_ITEMS.length;
             document.getElementById('calc-status').textContent =
-                `${PnlBuilder.dailyResults.length.toLocaleString()} daily forecasts | ${PnlBuilder.monthlySummary.length.toLocaleString()} monthly rows`;
+                `${PnlBuilder.dailyResults.length.toLocaleString()} venue-day rows | ${dailyAccountLines.toLocaleString()} daily account lines | ${monthlyAccountLines.toLocaleString()} monthly account lines`;
 
             fill.style.width = '100%';
-            text.textContent = `Done! ${PnlBuilder.dailyResults.length.toLocaleString()} daily rows generated`;
+            text.textContent = `Done! ${dailyAccountLines.toLocaleString()} daily account-line rows ready for export/push`;
 
         } catch (err) {
             text.textContent = `Error: ${err.message}`;
