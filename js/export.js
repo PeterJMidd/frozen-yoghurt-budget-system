@@ -7,58 +7,37 @@ const ExportEngine = {
     },
 
     exportDailyForecast() {
-        const data = PnlBuilder.dailyResults.map(f => ({
-            venue: f.venue_name,
-            state: f.state,
-            date: f.forecast_date,
-            gross_sales: f.gross_sales,
-            net_sales: f.net_sales,
-            transactions: f.forecast_transactions,
-            avg_ticket: f.avg_ticket,
-            ramp_up: f.ramp_up_multiplier,
-            cogs_food: f.cogs_food,
-            cogs_packaging: f.cogs_packaging,
-            cogs_retail: f.cogs_retail,
-            cogs_discounts: f.cogs_discounts,
-            cogs_total: f.cogs_total,
-            gross_profit: f.gross_profit,
-            crew_hours: f.crew_labour_hours,
-            crew_cost: f.crew_labour_cost,
-            crew_oncosts: f.crew_oncosts,
-            mgmt_cost: f.mgmt_labour_cost,
-            mgmt_oncosts: f.mgmt_oncosts,
-            labour_total: f.labour_total,
-            rent_base: f.rent_base,
-            rent_outgoings: f.rent_outgoings,
-            rent_pct: f.rent_percentage,
-            marketing_levy: f.rent_marketing_levy,
-            occupancy_total: f.occupancy_total,
-            venue_contribution: f.venue_contribution
-        }));
-        this.downloadXlsx(data, null, 'daily_forecast.xlsx');
+        this.downloadXlsx(
+            this.getDailyAccountLines(),
+            [
+                'venue', 'state', 'date', 'account_code', 'account_name', 'account_type',
+                'amount', 'transactions', 'avg_ticket', 'ramp_up_multiplier',
+                'growth_multiplier', 'source', 'similar_venue_key'
+            ],
+            'daily_forecast_account_lines.xlsx'
+        );
     },
 
     exportMonthlySummary() {
-        this.downloadXlsx(PnlBuilder.monthlySummary, null, 'monthly_summary.xlsx');
+        this.downloadXlsx(
+            this.getMonthlyAccountLines(),
+            [
+                'venue', 'state', 'budget_month', 'account_code', 'account_name',
+                'account_type', 'amount', 'transactions', 'trading_days'
+            ],
+            'monthly_summary_account_lines.xlsx'
+        );
     },
 
     exportPnl() {
-        const wb = XLSX.utils.book_new();
-        const venueKeys = [...new Set(PnlBuilder.monthlySummary.map(m => m.venue_key))];
-
-        const networkPnl = this.buildPnlSheet('__all__');
-        const wsNetwork = XLSX.utils.aoa_to_sheet(networkPnl);
-        XLSX.utils.book_append_sheet(wb, wsNetwork, 'Network');
-
-        for (const vk of venueKeys.slice(0, 50)) {
-            const venueName = PnlBuilder.monthlySummary.find(m => m.venue_key === vk)?.venue_name || vk;
-            const sheetName = venueName.substring(0, 31).replace(/[\\/*?[\]]/g, '');
-            const pnl = this.buildPnlSheet(vk);
-            const ws = XLSX.utils.aoa_to_sheet(pnl);
-            XLSX.utils.book_append_sheet(wb, ws, sheetName);
-        }
-
-        XLSX.writeFile(wb, 'budget_pnl.xlsx');
+        this.downloadXlsx(
+            this.getMonthlyAccountLines(),
+            [
+                'venue', 'state', 'budget_month', 'account_code', 'account_name',
+                'account_type', 'amount', 'transactions', 'trading_days'
+            ],
+            'budget_pnl_account_lines.xlsx'
+        );
     },
 
     buildPnlSheet(venueKey) {
@@ -81,13 +60,57 @@ const ExportEngine = {
     exportVariance() {
         const variance = PnlBuilder.getVarianceTable('__all__');
         const data = variance.map(v => ({
-            line_item: v.label,
+            account_name: v.label,
             budget: Math.round(v.budget),
             prior_year: Math.round(v.prior),
             variance: Math.round(v.variance),
             variance_pct: Math.round(v.variancePct * 10) / 10
         }));
-        this.downloadXlsx(data, null, 'variance_report.xlsx');
+        this.downloadXlsx(data, null, 'variance_account_lines.xlsx');
+    },
+
+    getDailyAccountLines() {
+        const rows = [];
+        for (const f of PnlBuilder.dailyResults) {
+            for (const item of CONFIG.PNL_LINE_ITEMS) {
+                rows.push({
+                    venue: f.venue_name,
+                    state: f.state,
+                    date: f.forecast_date,
+                    account_code: item.key,
+                    account_name: item.label,
+                    account_type: item.type,
+                    amount: Math.round((f[item.key] || 0) * 100) / 100,
+                    transactions: item.key === 'net_sales' ? f.forecast_transactions : null,
+                    avg_ticket: item.key === 'net_sales' ? f.avg_ticket : null,
+                    ramp_up_multiplier: f.ramp_up_multiplier,
+                    growth_multiplier: f.growth_multiplier || 1,
+                    source: f.source,
+                    similar_venue_key: f.similar_venue_key || null
+                });
+            }
+        }
+        return rows;
+    },
+
+    getMonthlyAccountLines() {
+        const rows = [];
+        for (const m of PnlBuilder.monthlySummary) {
+            for (const item of CONFIG.PNL_LINE_ITEMS) {
+                rows.push({
+                    venue: m.venue_name,
+                    state: m.state,
+                    budget_month: m.budget_month,
+                    account_code: item.key,
+                    account_name: item.label,
+                    account_type: item.type,
+                    amount: Math.round((m[item.key] || 0) * 100) / 100,
+                    transactions: item.key === 'net_sales' ? m.transaction_count : null,
+                    trading_days: item.key === 'net_sales' ? m.trading_days : null
+                });
+            }
+        }
+        return rows;
     },
 
     dedupeBy(rows, keyFn) {
