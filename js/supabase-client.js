@@ -102,6 +102,25 @@ const SupabaseClient = {
         await this._batchUpsert('monthly_summary', tagged, 'run_id,venue_id,budget_month');
     },
 
+    async writeDailyAccountLines(runId, rows, onProgress) {
+        const tagged = rows.map(r => ({ ...r, run_id: runId }));
+        await this._batchUpsert(
+            'daily_forecast_account_lines',
+            tagged,
+            'run_id,venue_id,forecast_date,account_code',
+            onProgress
+        );
+    },
+
+    async writeMonthlyAccountLines(runId, rows) {
+        const tagged = rows.map(r => ({ ...r, run_id: runId }));
+        await this._batchUpsert(
+            'monthly_summary_account_lines',
+            tagged,
+            'run_id,venue_id,budget_month,account_code'
+        );
+    },
+
     async _batchUpsert(table, rows, onConflict, onProgress) {
         const batchSize = CONFIG.SUPABASE_BATCH_SIZE;
         const conflictColumns = onConflict.split(',').map(c => c.trim()).filter(Boolean);

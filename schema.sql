@@ -144,8 +144,42 @@ CREATE TABLE IF NOT EXISTS monthly_summary (
     PRIMARY KEY (run_id, venue_id, budget_month)
 );
 
+CREATE TABLE IF NOT EXISTS daily_forecast_account_lines (
+    run_id                 INT REFERENCES budget_runs(run_id),
+    venue_id               INT REFERENCES venues(venue_id),
+    forecast_date          DATE NOT NULL,
+    account_code           TEXT NOT NULL,
+    account_name           TEXT NOT NULL,
+    account_type           TEXT,
+    amount                 NUMERIC(14,2),
+    forecast_transactions  INT,
+    avg_ticket             NUMERIC(8,2),
+    ramp_up_multiplier     NUMERIC(8,4),
+    growth_multiplier      NUMERIC(8,4),
+    source                 TEXT,
+    similar_venue_key      TEXT,
+    PRIMARY KEY (run_id, venue_id, forecast_date, account_code)
+);
+
+CREATE TABLE IF NOT EXISTS monthly_summary_account_lines (
+    run_id            INT REFERENCES budget_runs(run_id),
+    venue_id          INT REFERENCES venues(venue_id),
+    budget_month      DATE NOT NULL,
+    account_code      TEXT NOT NULL,
+    account_name      TEXT NOT NULL,
+    account_type      TEXT,
+    amount            NUMERIC(14,2),
+    transaction_count INT,
+    trading_days      INT,
+    PRIMARY KEY (run_id, venue_id, budget_month, account_code)
+);
+
 CREATE INDEX IF NOT EXISTS idx_daily_forecast_date ON daily_forecast(run_id, forecast_date);
 CREATE INDEX IF NOT EXISTS idx_daily_forecast_venue ON daily_forecast(run_id, venue_id);
+CREATE INDEX IF NOT EXISTS idx_daily_account_lines_date ON daily_forecast_account_lines(run_id, forecast_date);
+CREATE INDEX IF NOT EXISTS idx_daily_account_lines_account ON daily_forecast_account_lines(run_id, account_code);
+CREATE INDEX IF NOT EXISTS idx_monthly_account_lines_month ON monthly_summary_account_lines(run_id, budget_month);
+CREATE INDEX IF NOT EXISTS idx_monthly_account_lines_account ON monthly_summary_account_lines(run_id, account_code);
 CREATE INDEX IF NOT EXISTS idx_sales_history_date ON sales_history(sale_date);
 CREATE INDEX IF NOT EXISTS idx_weather_state_date ON weather_data(state, observation_date);
 
@@ -169,6 +203,8 @@ ALTER TABLE cogs_assumptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rent_assumptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_forecast ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_summary ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_forecast_account_lines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE monthly_summary_account_lines ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "anon read venues" ON venues;
 CREATE POLICY "anon read venues" ON venues FOR SELECT TO anon USING (true);
@@ -260,3 +296,17 @@ DROP POLICY IF EXISTS "anon insert monthly_summary" ON monthly_summary;
 CREATE POLICY "anon insert monthly_summary" ON monthly_summary FOR INSERT TO anon WITH CHECK (true);
 DROP POLICY IF EXISTS "anon update monthly_summary" ON monthly_summary;
 CREATE POLICY "anon update monthly_summary" ON monthly_summary FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read daily_forecast_account_lines" ON daily_forecast_account_lines;
+CREATE POLICY "anon read daily_forecast_account_lines" ON daily_forecast_account_lines FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert daily_forecast_account_lines" ON daily_forecast_account_lines;
+CREATE POLICY "anon insert daily_forecast_account_lines" ON daily_forecast_account_lines FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update daily_forecast_account_lines" ON daily_forecast_account_lines;
+CREATE POLICY "anon update daily_forecast_account_lines" ON daily_forecast_account_lines FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon read monthly_summary_account_lines" ON monthly_summary_account_lines;
+CREATE POLICY "anon read monthly_summary_account_lines" ON monthly_summary_account_lines FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "anon insert monthly_summary_account_lines" ON monthly_summary_account_lines;
+CREATE POLICY "anon insert monthly_summary_account_lines" ON monthly_summary_account_lines FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon update monthly_summary_account_lines" ON monthly_summary_account_lines;
+CREATE POLICY "anon update monthly_summary_account_lines" ON monthly_summary_account_lines FOR UPDATE TO anon USING (true) WITH CHECK (true);

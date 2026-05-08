@@ -113,6 +113,52 @@ const ExportEngine = {
         return rows;
     },
 
+    getDailyAccountDbRows(venueIdMap) {
+        const rows = [];
+        for (const f of PnlBuilder.dailyResults) {
+            const venueId = venueIdMap[f.venue_key];
+            if (!venueId) continue;
+            for (const item of CONFIG.PNL_LINE_ITEMS) {
+                rows.push({
+                    venue_id: venueId,
+                    forecast_date: f.forecast_date,
+                    account_code: item.key,
+                    account_name: item.label,
+                    account_type: item.type,
+                    amount: Math.round((f[item.key] || 0) * 100) / 100,
+                    forecast_transactions: item.key === 'net_sales' ? f.forecast_transactions : null,
+                    avg_ticket: item.key === 'net_sales' ? f.avg_ticket : null,
+                    ramp_up_multiplier: f.ramp_up_multiplier,
+                    growth_multiplier: f.growth_multiplier || 1,
+                    source: f.source,
+                    similar_venue_key: f.similar_venue_key || null
+                });
+            }
+        }
+        return rows;
+    },
+
+    getMonthlyAccountDbRows(venueIdMap) {
+        const rows = [];
+        for (const m of PnlBuilder.monthlySummary) {
+            const venueId = venueIdMap[m.venue_key];
+            if (!venueId) continue;
+            for (const item of CONFIG.PNL_LINE_ITEMS) {
+                rows.push({
+                    venue_id: venueId,
+                    budget_month: m.budget_month,
+                    account_code: item.key,
+                    account_name: item.label,
+                    account_type: item.type,
+                    amount: Math.round((m[item.key] || 0) * 100) / 100,
+                    transaction_count: item.key === 'net_sales' ? m.transaction_count : null,
+                    trading_days: item.key === 'net_sales' ? m.trading_days : null
+                });
+            }
+        }
+        return rows;
+    },
+
     dedupeBy(rows, keyFn) {
         const map = new Map();
         for (const row of rows) {
@@ -229,59 +275,18 @@ const ExportEngine = {
         }
         onProgress(15, 'Uploaded venues...');
 
-        const daily = PnlBuilder.dailyResults;
-        if (daily.length) {
-            const dailyRows = this.dedupeBy(daily.map(f => ({
-                venue_id: venueIdMap[f.venue_key],
-                forecast_date: f.forecast_date,
-                forecast_transactions: f.forecast_transactions,
-                avg_ticket: f.avg_ticket,
-                gross_sales: f.gross_sales,
-                net_sales: f.net_sales,
-                ramp_up_multiplier: f.ramp_up_multiplier,
-                cogs_food: f.cogs_food,
-                cogs_packaging: f.cogs_packaging,
-                cogs_retail: f.cogs_retail,
-                cogs_discounts: f.cogs_discounts,
-                cogs_total: f.cogs_total,
-                crew_labour_hours: f.crew_labour_hours,
-                crew_labour_cost: f.crew_labour_cost,
-                crew_oncosts: f.crew_oncosts,
-                mgmt_labour_cost: f.mgmt_labour_cost,
-                mgmt_oncosts: f.mgmt_oncosts,
-                labour_total: f.labour_total,
-                rent_base: f.rent_base,
-                rent_outgoings: f.rent_outgoings,
-                rent_percentage: f.rent_percentage,
-                rent_marketing_levy: f.rent_marketing_levy,
-                occupancy_total: f.occupancy_total,
-                gross_profit: f.gross_profit,
-                venue_contribution: f.venue_contribution
-            })), r => `${r.venue_id}_${r.forecast_date}`);
-
-            await SupabaseClient.writeDailyForecast(runId, dailyRows, (done, total) => {
+        const dailyAccountRows = this.getDailyAccountDbRows(venueIdMap);
+        if (dailyAccountRows.length) {
+            await SupabaseClient.writeDailyAccountLines(runId, dailyAccountRows, (done, total) => {
                 const pct = 15 + (done / total) * 70;
-                onProgress(pct, `Uploading forecasts... ${done}/${total}`);
+                onProgress(pct, `Uploading daily account lines... ${done}/${total}`);
             });
         }
-        onProgress(90, 'Uploading monthly summary...');
+        onProgress(90, 'Uploading monthly account lines...');
 
-        const monthly = PnlBuilder.monthlySummary;
-        if (monthly.length) {
-            const monthlyRows = this.dedupeBy(monthly.map(m => ({
-                venue_id: venueIdMap[m.venue_key],
-                budget_month: m.budget_month,
-                net_sales: m.net_sales,
-                cogs_total: m.cogs_total,
-                gross_profit: m.gross_profit,
-                labour_total: m.labour_total,
-                occupancy_total: m.occupancy_total,
-                venue_contribution: m.venue_contribution,
-                transaction_count: m.transaction_count,
-                trading_days: m.trading_days
-            })), r => `${r.venue_id}_${r.budget_month}`);
-
-            await SupabaseClient.writeMonthlySummary(runId, monthlyRows);
+        const monthlyAccountRows = this.getMonthlyAccountDbRows(venueIdMap);
+        if (monthlyAccountRows.length) {
+            await SupabaseClient.writeMonthlyAccountLines(runId, monthlyAccountRows);
         }
         onProgress(100, 'Complete!');
         return runId;
