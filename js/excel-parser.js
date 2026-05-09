@@ -334,7 +334,15 @@ const ExcelParser = {
                 avg_hourly_rate: Number(row.avg_hourly_rate || row['Avg Hourly Rate'] || row['Hourly Rate'] || 0),
                 oncosts_pct: Number(row.oncosts_pct || row['Oncosts %'] || row['On Costs %'] || 0) / 100,
                 mgmt_salary_monthly: Number(row.mgmt_salary_monthly || row['Mgmt Salary Monthly'] || row['Management Salary'] || 0),
-                mgmt_oncosts_pct: Number(row.mgmt_oncosts_pct || row['Mgmt Oncosts %'] || row['Mgmt On Costs %'] || 0) / 100
+                mgmt_oncosts_pct: Number(row.mgmt_oncosts_pct || row['Mgmt Oncosts %'] || row['Mgmt On Costs %'] || 0) / 100,
+                award_enabled: String(row.award_enabled || row['Award Enabled'] || 'Y').trim().toUpperCase() !== 'N',
+                award_employment_type: String(row.award_employment_type || row['Award Employment Type'] || CONFIG.FAST_FOOD_AWARD.default_employment_type).trim().toLowerCase(),
+                award_level: Number(row.award_level || row['Award Level'] || CONFIG.FAST_FOOD_AWARD.default_level),
+                average_age: Number(row.average_age || row['Average Age'] || CONFIG.FAST_FOOD_AWARD.default_average_age),
+                award_weekday_rate: Number(row.award_weekday_rate || row['Award Weekday Rate'] || 0),
+                award_saturday_rate: Number(row.award_saturday_rate || row['Award Saturday Rate'] || 0),
+                award_sunday_rate: Number(row.award_sunday_rate || row['Award Sunday Rate'] || 0),
+                award_public_holiday_rate: Number(row.award_public_holiday_rate || row['Award Public Holiday Rate'] || 0)
             });
         }
 

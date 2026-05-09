@@ -21,7 +21,7 @@ const SupabaseClient = {
         if (error) throw error;
         const { error: accountLinesError } = await this.client
             .from('daily_forecast_account_lines')
-            .select('run_id, account_category')
+            .select('run_id, account_category, public_holiday_name, prior_year_comparable_date, labour_day_type')
             .limit(1);
         if (accountLinesError) {
             throw new Error(`${accountLinesError.message}. Run the updated schema SQL so account-line output tables and categories exist.`);
@@ -317,6 +317,11 @@ CREATE TABLE IF NOT EXISTS daily_forecast_account_lines (
     avg_ticket             NUMERIC(8,2),
     ramp_up_multiplier     NUMERIC(8,4),
     growth_multiplier      NUMERIC(8,4),
+    public_holiday_name    TEXT,
+    prior_year_comparable_date DATE,
+    prior_comparable_sales NUMERIC(14,2),
+    labour_day_type        TEXT,
+    crew_hourly_rate       NUMERIC(8,2),
     source                 TEXT,
     similar_venue_key      TEXT,
     PRIMARY KEY (run_id, venue_id, forecast_date, account_code)
@@ -340,6 +345,11 @@ CREATE INDEX IF NOT EXISTS idx_daily_forecast_date ON daily_forecast(run_id, for
 CREATE INDEX IF NOT EXISTS idx_daily_forecast_venue ON daily_forecast(run_id, venue_id);
 ALTER TABLE daily_forecast_account_lines ADD COLUMN IF NOT EXISTS account_category TEXT;
 ALTER TABLE monthly_summary_account_lines ADD COLUMN IF NOT EXISTS account_category TEXT;
+ALTER TABLE daily_forecast_account_lines ADD COLUMN IF NOT EXISTS public_holiday_name TEXT;
+ALTER TABLE daily_forecast_account_lines ADD COLUMN IF NOT EXISTS prior_year_comparable_date DATE;
+ALTER TABLE daily_forecast_account_lines ADD COLUMN IF NOT EXISTS prior_comparable_sales NUMERIC(14,2);
+ALTER TABLE daily_forecast_account_lines ADD COLUMN IF NOT EXISTS labour_day_type TEXT;
+ALTER TABLE daily_forecast_account_lines ADD COLUMN IF NOT EXISTS crew_hourly_rate NUMERIC(8,2);
 CREATE INDEX IF NOT EXISTS idx_daily_account_lines_date ON daily_forecast_account_lines(run_id, forecast_date);
 CREATE INDEX IF NOT EXISTS idx_daily_account_lines_account ON daily_forecast_account_lines(run_id, account_code);
 CREATE INDEX IF NOT EXISTS idx_monthly_account_lines_month ON monthly_summary_account_lines(run_id, budget_month);

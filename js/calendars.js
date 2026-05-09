@@ -1,19 +1,143 @@
 const CALENDARS = {
+    publicHolidayLabels: {
+        national: {
+            '2025-01-01': "New Year's Day",
+            '2025-01-27': 'Australia Day',
+            '2025-04-18': 'Good Friday',
+            '2025-04-19': 'Easter Saturday',
+            '2025-04-20': 'Easter Sunday',
+            '2025-04-21': 'Easter Monday',
+            '2025-04-25': 'Anzac Day',
+            '2025-12-25': 'Christmas Day',
+            '2025-12-26': 'Boxing Day',
+            '2026-01-01': "New Year's Day",
+            '2026-01-26': 'Australia Day',
+            '2026-04-03': 'Good Friday',
+            '2026-04-04': 'Easter Saturday',
+            '2026-04-05': 'Easter Sunday',
+            '2026-04-06': 'Easter Monday',
+            '2026-04-25': 'Anzac Day',
+            '2026-12-25': 'Christmas Day',
+            '2026-12-26': 'Boxing Day',
+            '2026-12-28': 'Additional public holiday for Boxing Day',
+            '2027-01-01': "New Year's Day",
+            '2027-01-26': 'Australia Day',
+            '2027-03-26': 'Good Friday',
+            '2027-03-27': 'Easter Saturday',
+            '2027-03-28': 'Easter Sunday',
+            '2027-03-29': 'Easter Monday',
+            '2027-04-25': 'Anzac Day',
+            '2027-12-25': 'Christmas Day',
+            '2027-12-26': 'Boxing Day',
+            '2027-12-27': 'Additional public holiday for Christmas Day',
+            '2027-12-28': 'Additional public holiday for Boxing Day'
+        },
+        NSW: {
+            '2025-06-09': "King's Birthday",
+            '2025-10-06': 'Labour Day',
+            '2026-04-27': 'Additional public holiday for Anzac Day',
+            '2026-06-08': "King's Birthday",
+            '2026-10-05': 'Labour Day',
+            '2027-04-26': 'Additional public holiday for Anzac Day',
+            '2027-06-14': "King's Birthday",
+            '2027-10-04': 'Labour Day'
+        },
+        VIC: {
+            '2024-11-05': 'Melbourne Cup Day',
+            '2025-03-10': 'Labour Day',
+            '2025-06-09': "King's Birthday",
+            '2025-11-04': 'Melbourne Cup Day',
+            '2026-03-09': 'Labour Day',
+            '2026-06-08': "King's Birthday",
+            '2026-11-03': 'Melbourne Cup Day',
+            '2027-03-08': 'Labour Day',
+            '2027-06-14': "King's Birthday",
+            '2027-11-02': 'Melbourne Cup Day'
+        },
+        QLD: {
+            '2025-05-05': 'Labour Day',
+            '2025-08-13': 'Royal Queensland Show',
+            '2025-10-06': "King's Birthday",
+            '2026-05-04': 'Labour Day',
+            '2026-08-12': 'Royal Queensland Show',
+            '2026-10-05': "King's Birthday",
+            '2027-05-03': 'Labour Day',
+            '2027-08-11': 'Royal Queensland Show',
+            '2027-10-04': "King's Birthday"
+        },
+        SA: {
+            '2025-03-10': 'Adelaide Cup Day',
+            '2025-06-09': "King's Birthday",
+            '2025-10-06': 'Labour Day',
+            '2025-12-24': 'Christmas Eve',
+            '2026-03-09': 'Adelaide Cup Day',
+            '2026-06-08': "King's Birthday",
+            '2026-10-05': 'Labour Day',
+            '2026-12-24': 'Christmas Eve',
+            '2027-03-08': 'Adelaide Cup Day',
+            '2027-06-14': "King's Birthday",
+            '2027-10-04': 'Labour Day'
+        },
+        WA: {
+            '2025-03-03': 'Labour Day',
+            '2025-06-02': 'Western Australia Day',
+            '2025-09-29': "King's Birthday",
+            '2026-03-02': 'Labour Day',
+            '2026-04-27': 'Additional public holiday for Anzac Day',
+            '2026-06-01': 'Western Australia Day',
+            '2026-09-28': "King's Birthday",
+            '2027-03-01': 'Labour Day',
+            '2027-04-26': 'Additional public holiday for Anzac Day',
+            '2027-06-07': 'Western Australia Day',
+            '2027-09-27': "King's Birthday"
+        },
+        TAS: {
+            '2025-02-10': 'Royal Hobart Regatta',
+            '2025-06-09': "King's Birthday",
+            '2026-02-09': 'Royal Hobart Regatta',
+            '2026-06-08': "King's Birthday",
+            '2027-02-08': 'Royal Hobart Regatta',
+            '2027-06-14': "King's Birthday"
+        },
+        NT: {
+            '2025-05-05': 'May Day',
+            '2025-06-09': "King's Birthday",
+            '2025-08-04': 'Picnic Day',
+            '2025-12-24': 'Christmas Eve',
+            '2026-05-04': 'May Day',
+            '2026-06-08': "King's Birthday",
+            '2026-08-03': 'Picnic Day',
+            '2026-12-24': 'Christmas Eve',
+            '2027-05-03': 'May Day',
+            '2027-06-14': "King's Birthday",
+            '2027-08-02': 'Picnic Day'
+        },
+        ACT: {
+            '2025-03-10': 'Canberra Day',
+            '2025-06-02': 'Reconciliation Day',
+            '2025-06-09': "King's Birthday",
+            '2025-10-06': 'Labour Day',
+            '2026-03-09': 'Canberra Day',
+            '2026-05-25': 'Reconciliation Day',
+            '2026-06-08': "King's Birthday",
+            '2026-10-05': 'Labour Day',
+            '2027-03-08': 'Canberra Day',
+            '2027-05-31': 'Reconciliation Day',
+            '2027-06-14': "King's Birthday",
+            '2027-10-04': 'Labour Day'
+        }
+    },
+
     publicHolidays: {
-        national: [
-            '2026-01-01', '2026-01-26', '2026-04-03', '2026-04-04', '2026-04-06',
-            '2026-04-25', '2026-06-08', '2026-12-25', '2026-12-26',
-            '2027-01-01', '2027-01-26', '2027-03-26', '2027-03-27', '2027-03-29',
-            '2027-04-25', '2027-06-14', '2027-12-25', '2027-12-26'
-        ],
-        NSW: ['2026-06-08', '2026-08-03', '2027-06-14', '2027-08-02'],
-        VIC: ['2026-03-09', '2026-06-08', '2026-11-03', '2027-03-08', '2027-06-14', '2027-11-02'],
-        QLD: ['2026-05-04', '2026-08-12', '2026-10-26', '2027-05-03', '2027-08-11', '2027-10-25'],
-        SA:  ['2026-03-09', '2026-06-08', '2026-10-05', '2026-12-24', '2027-03-08', '2027-06-14', '2027-10-04'],
-        WA:  ['2026-03-02', '2026-06-01', '2026-09-28', '2027-03-01', '2027-06-07', '2027-09-27'],
-        TAS: ['2026-02-09', '2026-06-08', '2027-02-08', '2027-06-14'],
-        NT:  ['2026-05-04', '2026-06-08', '2026-08-03', '2026-12-24', '2027-05-03', '2027-06-14', '2027-08-02'],
-        ACT: ['2026-03-09', '2026-05-25', '2026-06-08', '2027-03-08', '2027-05-31', '2027-06-14']
+        national: [],
+        NSW: [],
+        VIC: [],
+        QLD: [],
+        SA: [],
+        WA: [],
+        TAS: [],
+        NT: [],
+        ACT: []
     },
 
     schoolHolidays: {
@@ -84,8 +208,65 @@ const CALENDARS = {
     },
 
     isPublicHoliday(dateStr, state) {
-        return this.publicHolidays.national.includes(dateStr) ||
-               (this.publicHolidays[state] && this.publicHolidays[state].includes(dateStr));
+        return Boolean(this.getPublicHolidayName(dateStr, state));
+    },
+
+    getPublicHolidayName(dateStr, state) {
+        return this.publicHolidayLabels[state]?.[dateStr] ||
+            this.publicHolidayLabels.national[dateStr] ||
+            null;
+    },
+
+    getPriorYearComparableDate(dateStr, state) {
+        const current = this.parseDate(dateStr);
+        if (!current) return dateStr;
+
+        const holidayName = this.getPublicHolidayName(dateStr, state);
+        if (holidayName) {
+            const matchedHoliday = this.findHolidayDate(holidayName, state, current.getFullYear() - 1);
+            if (matchedHoliday) return matchedHoliday;
+        }
+
+        const weekdayComparable = this.addDays(current, -364);
+        const weekdayComparableStr = this.formatDate(weekdayComparable);
+        if (!this.isPublicHoliday(weekdayComparableStr, state)) return weekdayComparableStr;
+
+        for (const offset of [-7, 7, -14, 14]) {
+            const candidate = this.formatDate(this.addDays(weekdayComparable, offset));
+            if (!this.isPublicHoliday(candidate, state)) return candidate;
+        }
+        return weekdayComparableStr;
+    },
+
+    findHolidayDate(holidayName, state, year) {
+        const holidayMaps = [this.publicHolidayLabels[state] || {}, this.publicHolidayLabels.national];
+        for (const map of holidayMaps) {
+            const match = Object.entries(map).find(([date, name]) =>
+                Number(date.substring(0, 4)) === year && name === holidayName
+            );
+            if (match) return match[0];
+        }
+        return null;
+    },
+
+    parseDate(dateStr) {
+        const match = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!match) return null;
+        return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    },
+
+    formatDate(date) {
+        return [
+            date.getFullYear(),
+            String(date.getMonth() + 1).padStart(2, '0'),
+            String(date.getDate()).padStart(2, '0')
+        ].join('-');
+    },
+
+    addDays(date, days) {
+        const copy = new Date(date);
+        copy.setDate(copy.getDate() + days);
+        return copy;
     },
 
     isSchoolHoliday(dateStr, state) {

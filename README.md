@@ -34,12 +34,12 @@ The `templates/` folder contains FY27-ready workbooks generated from the supplie
 - `03_Venue_Details_Template.xlsx`
 - `03_Venue_Details_Template_v2.xlsx` - updated with monthly growth and new venue assumptions
 - `04_Avg_Ticket_Template.xlsx`
-- `05_Labour_Template.xlsx`
+- `05_Labour_Template.xlsx` - updated with Fast Food Award day-type rates for age 21+ casual Level 1 crew labour
 - `06_COGS_Template.xlsx`
 - `07_Rent_Template.xlsx`
 - `08_Other_PnL_Template.xlsx` - venue-only template for uncovered GL P&L accounts, Build_NAME_L4 categories, recommendations, seasonality-annualised prior comparison, and dated adjustments
 
-The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v6.zip`.
+The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v7.zip`.
 
 ## Backend
 

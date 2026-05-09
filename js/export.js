@@ -39,7 +39,9 @@ const ExportEngine = {
             [
                 'venue', 'state', 'date', 'account_code', 'account_name', 'account_type', 'account_category',
                 'amount', 'transactions', 'avg_ticket', 'ramp_up_multiplier',
-                'growth_multiplier', 'source', 'similar_venue_key'
+                'growth_multiplier', 'public_holiday_name', 'prior_year_comparable_date',
+                'prior_comparable_sales', 'labour_day_type', 'crew_hourly_rate',
+                'source', 'similar_venue_key'
             ],
             'daily_forecast_account_lines.xlsx'
         );
@@ -119,6 +121,11 @@ const ExportEngine = {
                     avg_ticket: item.key === 'net_sales' ? f.avg_ticket : null,
                     ramp_up_multiplier: f.ramp_up_multiplier,
                     growth_multiplier: f.growth_multiplier || 1,
+                    public_holiday_name: f.public_holiday_name || null,
+                    prior_year_comparable_date: f.prior_year_comparable_date || null,
+                    prior_comparable_sales: item.key === 'net_sales' ? (f.prior_comparable_sales || null) : null,
+                    labour_day_type: item.type === 'labour' || item.key === 'labour_total' ? f.labour_day_type : null,
+                    crew_hourly_rate: item.key === 'crew_labour_cost' ? f.crew_hourly_rate : null,
                     source: f.source,
                     similar_venue_key: f.similar_venue_key || null
                 });
@@ -168,6 +175,11 @@ const ExportEngine = {
                     avg_ticket: item.key === 'net_sales' ? f.avg_ticket : null,
                     ramp_up_multiplier: f.ramp_up_multiplier,
                     growth_multiplier: f.growth_multiplier || 1,
+                    public_holiday_name: f.public_holiday_name || null,
+                    prior_year_comparable_date: f.prior_year_comparable_date || null,
+                    prior_comparable_sales: item.key === 'net_sales' ? (f.prior_comparable_sales || null) : null,
+                    labour_day_type: item.type === 'labour' || item.key === 'labour_total' ? f.labour_day_type : null,
+                    crew_hourly_rate: item.key === 'crew_labour_cost' ? f.crew_hourly_rate : null,
                     source: f.source,
                     similar_venue_key: f.similar_venue_key || null
                 });
@@ -262,8 +274,14 @@ const ExportEngine = {
         XLSX.utils.book_append_sheet(wb, wsTicket, 'Avg Ticket');
 
         const wsLabour = XLSX.utils.aoa_to_sheet([
-            ['venue_name', 'Sales Per Labour Hour', 'Avg Hourly Rate', 'Oncosts %', 'Mgmt Salary Monthly', 'Mgmt Oncosts %'],
-            ['Venue 1', 120, 28.50, 12, 6500, 12]
+            [
+                'venue_name', 'Sales Per Labour Hour', 'Avg Hourly Rate', 'Oncosts %',
+                'Mgmt Salary Monthly', 'Mgmt Oncosts %', 'Award Enabled',
+                'Award Employment Type', 'Award Level', 'Average Age',
+                'Award Weekday Rate', 'Award Saturday Rate', 'Award Sunday Rate',
+                'Award Public Holiday Rate'
+            ],
+            ['Venue 1', 120, 33.19, 12, 6500, 12, 'Y', 'casual', 1, 21, 33.19, 39.83, 39.83, 66.38]
         ]);
         XLSX.utils.book_append_sheet(wb, wsLabour, 'Labour');
 

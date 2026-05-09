@@ -28,12 +28,18 @@ const LabourCalcEngine = {
                 ? forecast.net_sales / labour.sales_per_labour_hr
                 : 0;
 
-            const crewCost = crewHours * labour.avg_hourly_rate;
+            const awardRate = this.getCrewHourlyRate(forecast, labour);
+            const labourDayType = this.getLabourDayType(forecast);
+            const crewHourlyRate = awardRate || labour.avg_hourly_rate;
+            const crewCost = crewHours * crewHourlyRate;
             const crewOncosts = crewCost * labour.oncosts_pct;
             const mgmtDaily = labour.mgmt_salary_monthly / daysInMonth;
             const mgmtOncosts = mgmtDaily * labour.mgmt_oncosts_pct;
 
             forecast.crew_labour_hours = Math.round(crewHours * 100) / 100;
+            forecast.crew_hourly_rate = Math.round(crewHourlyRate * 100) / 100;
+            forecast.labour_day_type = labourDayType;
+            forecast.labour_award_enabled = Boolean(awardRate);
             forecast.crew_labour_cost = Math.round(crewCost * 100) / 100;
             forecast.crew_oncosts = Math.round(crewOncosts * 100) / 100;
             forecast.mgmt_labour_cost = Math.round(mgmtDaily * 100) / 100;
@@ -42,5 +48,30 @@ const LabourCalcEngine = {
         }
 
         return dailyForecasts;
+    },
+
+    getCrewHourlyRate(forecast, labour) {
+        if (labour.award_enabled === false) return null;
+
+        const levelKey = `level_${labour.award_level || CONFIG.FAST_FOOD_AWARD.default_level}`;
+        const awardLevel = CONFIG.FAST_FOOD_AWARD.rates[levelKey] || CONFIG.FAST_FOOD_AWARD.rates.level_1;
+        const employmentType = labour.award_employment_type || CONFIG.FAST_FOOD_AWARD.default_employment_type;
+        const rates = awardLevel[employmentType] || awardLevel.casual;
+        const dayType = this.getLabourDayType(forecast);
+        const overrideRate = labour[`award_${dayType}_rate`];
+        if (overrideRate > 0) return overrideRate;
+
+        return rates[dayType] || rates.weekday;
+    },
+
+    getLabourDayType(forecast) {
+        if (forecast.public_holiday_name || CALENDARS.isPublicHoliday(forecast.forecast_date, forecast.state)) {
+            return 'public_holiday';
+        }
+
+        const day = new Date(forecast.forecast_date).getDay();
+        if (day === 6) return 'saturday';
+        if (day === 0) return 'sunday';
+        return 'weekday';
     }
 };

@@ -3,6 +3,7 @@ const SalesForecastEngine = {
     baseDailySales: {},
     dailyForecasts: [],
     apiForecasts: {},
+    salesHistoryLookup: {},
     useApi: false,
 
     buildSeasonality(salesHistory, venueDetails) {
@@ -17,6 +18,7 @@ const SalesForecastEngine = {
 
         this.seasonalityIndices = {};
         this.baseDailySales = {};
+        this.salesHistoryLookup = {};
 
         for (const [venueKey, sales] of Object.entries(grouped)) {
             const venue = venueMap[venueKey];
@@ -33,6 +35,9 @@ const SalesForecastEngine = {
             const normalBucket = { total: 0, count: 0 };
 
             for (const s of sales) {
+                if (!this.salesHistoryLookup[venueKey]) this.salesHistoryLookup[venueKey] = {};
+                this.salesHistoryLookup[venueKey][s.sale_date] = s.gross_sales;
+
                 const d = new Date(s.sale_date);
                 const dow = (d.getDay() + 6) % 7;
                 const month = d.getMonth();
@@ -196,6 +201,8 @@ const SalesForecastEngine = {
                 const month = current.getMonth();
                 const monthNum = current.getMonth() + 1;
                 const monthKey = `${current.getFullYear()}-${String(monthNum).padStart(2, '0')}-01`;
+                const publicHolidayName = CALENDARS.getPublicHolidayName(dateStr, venue.state);
+                const priorComparableDate = CALENDARS.getPriorYearComparableDate(dateStr, venue.state);
 
                 const rampUp = this.getRampUpMultiplier(venue, dateStr, rampUpData);
                 const growthMultiplier = this.getGrowthMultiplier(
@@ -255,6 +262,9 @@ const SalesForecastEngine = {
                     venue_name: venue.venue_name,
                     state: venue.state,
                     forecast_date: dateStr,
+                    public_holiday_name: publicHolidayName,
+                    prior_year_comparable_date: priorComparableDate,
+                    prior_comparable_sales: this.getPriorComparableSales(venue, priorComparableDate, similarVenueKey),
                     gross_sales: forecastSales,
                     net_sales: forecastSales,
                     forecast_transactions: transactions,
@@ -270,6 +280,18 @@ const SalesForecastEngine = {
         }
 
         return this.dailyForecasts;
+    },
+
+    getPriorComparableSales(venue, comparableDate, similarVenueKey) {
+        const direct = this.salesHistoryLookup[venue.venue_key]?.[comparableDate];
+        if (direct != null) return direct;
+
+        if (similarVenueKey) {
+            const similar = this.salesHistoryLookup[similarVenueKey]?.[comparableDate];
+            if (similar != null) return similar;
+        }
+
+        return null;
     },
 
     getGrowthMultiplier(venue, dateStr, forecastStart, monthlyGrowthData, newVenueAssumptions) {
@@ -336,10 +358,20 @@ const SalesForecastEngine = {
         const monthly = {};
         for (const f of forecasts) {
             const monthKey = f.forecast_date.substring(0, 7);
-            if (!monthly[monthKey]) monthly[monthKey] = { sales: 0, transactions: 0, days: 0 };
+            if (!monthly[monthKey]) {
+                monthly[monthKey] = {
+                    sales: 0,
+                    transactions: 0,
+                    days: 0,
+                    prior_comparable_sales: 0,
+                    public_holidays: 0
+                };
+            }
             monthly[monthKey].sales += f.net_sales;
             monthly[monthKey].transactions += f.forecast_transactions;
             monthly[monthKey].days++;
+            monthly[monthKey].prior_comparable_sales += f.prior_comparable_sales || 0;
+            if (f.public_holiday_name) monthly[monthKey].public_holidays++;
         }
 
         return Object.entries(monthly)

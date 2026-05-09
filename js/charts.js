@@ -174,16 +174,6 @@ const Charts = {
     renderSalesComparisonChart() {
         this.destroy('chart-sales-comparison');
         const budgetMonthly = SalesForecastEngine.getMonthlySalesForecasts('__all__');
-        const priorTotals = PnlBuilder.priorPnlByVenue;
-
-        const priorByMonth = {};
-        for (const venueData of Object.values(priorTotals)) {
-            for (const [month, items] of Object.entries(venueData)) {
-                const sales = items['Net Sales'] || items['net_sales'] || 0;
-                if (!priorByMonth[month]) priorByMonth[month] = 0;
-                priorByMonth[month] += sales;
-            }
-        }
 
         const ctx = document.getElementById('chart-sales-comparison').getContext('2d');
         this.instances['chart-sales-comparison'] = new Chart(ctx, {
@@ -198,8 +188,8 @@ const Charts = {
                         borderRadius: 4
                     },
                     {
-                        label: 'Prior Year',
-                        data: budgetMonthly.map(d => priorByMonth[d.month] || 0),
+                        label: 'Prior Comparable',
+                        data: budgetMonthly.map(d => d.prior_comparable_sales || 0),
                         backgroundColor: 'rgba(148,163,184,0.5)',
                         borderRadius: 4
                     }

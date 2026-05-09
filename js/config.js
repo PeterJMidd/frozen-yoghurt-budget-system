@@ -12,6 +12,30 @@ const CONFIG = {
 
     STATES: ['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'NT', 'ACT'],
 
+    FAST_FOOD_AWARD: {
+        effective_from: '2025-07-01',
+        default_level: 1,
+        default_average_age: 21,
+        default_employment_type: 'casual',
+        rates: {
+            level_1: {
+                adult_base_rate: 26.55,
+                permanent: {
+                    weekday: 26.55,
+                    saturday: 33.19,
+                    sunday: 33.19,
+                    public_holiday: 59.74
+                },
+                casual: {
+                    weekday: 33.19,
+                    saturday: 39.83,
+                    sunday: 39.83,
+                    public_holiday: 66.38
+                }
+            }
+        }
+    },
+
     STATE_COORDS: {
         NSW: { lat: -33.87, lon: 151.21 },
         VIC: { lat: -37.81, lon: 144.96 },
