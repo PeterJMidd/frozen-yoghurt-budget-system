@@ -2,12 +2,14 @@ const PnlBuilder = {
     dailyResults: [],
     monthlySummary: [],
     priorPnlByVenue: {},
+    otherPnlLineItems: [],
 
     run(data) {
         const {
             venueDetails, salesHistory, avgTicketData, rampUpData,
             labourAssumptions, cogsAssumptions, rentAssumptions,
-            monthlyGrowthData, newVenueAssumptions, forecastStart, forecastEnd
+            monthlyGrowthData, newVenueAssumptions, otherPnlAssumptions,
+            forecastStart, forecastEnd
         } = data;
 
         SalesForecastEngine.buildSeasonality(salesHistory, venueDetails);
@@ -19,10 +21,18 @@ const PnlBuilder = {
         CogsCalcEngine.calculate(forecasts, cogsAssumptions);
         LabourCalcEngine.calculate(forecasts, labourAssumptions);
         RentCalcEngine.calculate(forecasts, rentAssumptions);
+        OtherPnlCalcEngine.calculate(
+            forecasts,
+            otherPnlAssumptions || [],
+            venueDetails,
+            forecastStart,
+            forecastEnd
+        );
+        this.otherPnlLineItems = OtherPnlCalcEngine.lineItems || [];
 
         for (const f of forecasts) {
             f.venue_contribution = Math.round(
-                (f.gross_profit - f.labour_total - f.occupancy_total) * 100
+                (f.gross_profit - f.labour_total - f.occupancy_total - (f.other_pnl_total || 0)) * 100
             ) / 100;
         }
 
@@ -62,6 +72,7 @@ const PnlBuilder = {
                     rent_percentage: 0,
                     rent_marketing_levy: 0,
                     occupancy_total: 0,
+                    other_pnl_total: 0,
                     venue_contribution: 0,
                     transaction_count: 0,
                     trading_days: 0
@@ -86,6 +97,11 @@ const PnlBuilder = {
             m.rent_percentage += f.rent_percentage;
             m.rent_marketing_levy += f.rent_marketing_levy;
             m.occupancy_total += f.occupancy_total;
+            m.other_pnl_total += f.other_pnl_total || 0;
+            for (const item of this.otherPnlLineItems) {
+                if (m[item.key] == null) m[item.key] = 0;
+                m[item.key] += f[item.key] || 0;
+            }
             m.venue_contribution += f.venue_contribution;
             m.transaction_count += f.forecast_transactions;
             m.trading_days++;
@@ -116,7 +132,7 @@ const PnlBuilder = {
 
     getPnlTable(venueKey, view) {
         const months = this.getMonthsForView(venueKey, view);
-        const lineItems = CONFIG.PNL_LINE_ITEMS;
+        const lineItems = this.getPnlLineItems();
 
         const rows = lineItems.map(item => {
             const row = { key: item.key, label: item.label, type: item.type, values: {} };
@@ -129,6 +145,19 @@ const PnlBuilder = {
         });
 
         return { months, rows };
+    },
+
+    getPnlLineItems() {
+        if (!this.otherPnlLineItems.length) return CONFIG.PNL_LINE_ITEMS;
+
+        const contribution = CONFIG.PNL_LINE_ITEMS.find(item => item.key === 'venue_contribution');
+        const base = CONFIG.PNL_LINE_ITEMS.filter(item => item.key !== 'venue_contribution');
+        return [
+            ...base,
+            ...this.otherPnlLineItems,
+            { key: 'other_pnl_total', label: 'Total Other P&L', type: 'subtotal' },
+            contribution
+        ].filter(Boolean);
     },
 
     getMonthsForView(venueKey, view) {
@@ -253,17 +282,32 @@ const PnlBuilder = {
             'total occupancy': 'occupancy_total',
             'venue contribution': 'venue_contribution'
         };
-        return map[lower] || null;
+        if (map[lower]) return map[lower];
+
+        const dynamic = this.getPnlLineItems().find(item =>
+            item.label?.toLowerCase().trim() === lower ||
+            item.key?.toLowerCase().trim() === lower
+        );
+        return dynamic?.key || null;
     },
 
     getNetworkKPIs() {
-        const totals = { net_sales: 0, cogs_total: 0, gross_profit: 0, labour_total: 0, occupancy_total: 0, venue_contribution: 0 };
+        const totals = {
+            net_sales: 0,
+            cogs_total: 0,
+            gross_profit: 0,
+            labour_total: 0,
+            occupancy_total: 0,
+            other_pnl_total: 0,
+            venue_contribution: 0
+        };
         for (const m of this.monthlySummary) {
             totals.net_sales += m.net_sales;
             totals.cogs_total += m.cogs_total;
             totals.gross_profit += m.gross_profit;
             totals.labour_total += m.labour_total;
             totals.occupancy_total += m.occupancy_total;
+            totals.other_pnl_total += m.other_pnl_total || 0;
             totals.venue_contribution += m.venue_contribution;
         }
 

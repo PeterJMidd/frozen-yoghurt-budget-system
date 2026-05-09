@@ -71,13 +71,14 @@ const ExportEngine = {
 
     getDailyAccountLines() {
         const rows = [];
+        const lineItems = PnlBuilder.getPnlLineItems();
         for (const f of PnlBuilder.dailyResults) {
-            for (const item of CONFIG.PNL_LINE_ITEMS) {
+            for (const item of lineItems) {
                 rows.push({
                     venue: f.venue_name,
                     state: f.state,
                     date: f.forecast_date,
-                    account_code: item.key,
+                    account_code: item.account_code || item.key,
                     account_name: item.label,
                     account_type: item.type,
                     amount: Math.round((f[item.key] || 0) * 100) / 100,
@@ -95,13 +96,14 @@ const ExportEngine = {
 
     getMonthlyAccountLines() {
         const rows = [];
+        const lineItems = PnlBuilder.getPnlLineItems();
         for (const m of PnlBuilder.monthlySummary) {
-            for (const item of CONFIG.PNL_LINE_ITEMS) {
+            for (const item of lineItems) {
                 rows.push({
                     venue: m.venue_name,
                     state: m.state,
                     budget_month: m.budget_month,
-                    account_code: item.key,
+                    account_code: item.account_code || item.key,
                     account_name: item.label,
                     account_type: item.type,
                     amount: Math.round((m[item.key] || 0) * 100) / 100,
@@ -115,14 +117,15 @@ const ExportEngine = {
 
     getDailyAccountDbRows(venueIdMap) {
         const rows = [];
+        const lineItems = PnlBuilder.getPnlLineItems();
         for (const f of PnlBuilder.dailyResults) {
             const venueId = venueIdMap[f.venue_key];
             if (!venueId) continue;
-            for (const item of CONFIG.PNL_LINE_ITEMS) {
+            for (const item of lineItems) {
                 rows.push({
                     venue_id: venueId,
                     forecast_date: f.forecast_date,
-                    account_code: item.key,
+                    account_code: item.account_code || item.key,
                     account_name: item.label,
                     account_type: item.type,
                     amount: Math.round((f[item.key] || 0) * 100) / 100,
@@ -140,14 +143,15 @@ const ExportEngine = {
 
     getMonthlyAccountDbRows(venueIdMap) {
         const rows = [];
+        const lineItems = PnlBuilder.getPnlLineItems();
         for (const m of PnlBuilder.monthlySummary) {
             const venueId = venueIdMap[m.venue_key];
             if (!venueId) continue;
-            for (const item of CONFIG.PNL_LINE_ITEMS) {
+            for (const item of lineItems) {
                 rows.push({
                     venue_id: venueId,
                     budget_month: m.budget_month,
-                    account_code: item.key,
+                    account_code: item.account_code || item.key,
                     account_name: item.label,
                     account_type: item.type,
                     amount: Math.round((m[item.key] || 0) * 100) / 100,
@@ -238,6 +242,22 @@ const ExportEngine = {
             ['Venue 1', 8000, 2500, 50000, 8, 2]
         ]);
         XLSX.utils.book_append_sheet(wb, wsRent, 'Rent');
+
+        const wsOtherPnl = XLSX.utils.aoa_to_sheet([
+            [
+                'active', 'allocation_scope', 'tracking_category_option1', 'venue_name',
+                'account_code', 'account_name', 'account_key', 'account_type',
+                'budget_method', 'base_monthly_amount', 'base_daily_amount', 'pct_of_sales',
+                'effective_date', 'adjustment_type', 'adjustment_value', 'recommendation', 'notes'
+            ],
+            [
+                'Y', 'venue', '01. EXAMPLE.VIC', 'Venue 1',
+                '63001', 'Cleaning & disposables', 'other_63001_cleaning_disposables', 'Expense',
+                'daily_amount', 0, 25, 0,
+                '', '', '', 'Use recent actual daily run-rate and adjust for known contract changes.', ''
+            ]
+        ]);
+        XLSX.utils.book_append_sheet(wb, wsOtherPnl, 'Other P&L');
 
         XLSX.writeFile(wb, 'budget_templates.xlsx');
     },

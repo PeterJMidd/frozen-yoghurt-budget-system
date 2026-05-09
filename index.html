@@ -110,6 +110,17 @@
                     <div class="upload-status" id="status-rent"></div>
                 </div>
 
+                <div class="upload-card" data-template="other_pnl">
+                    <div class="upload-icon">$</div>
+                    <h3>8. Other P&L</h3>
+                    <p>Other venue expenses, income and dated adjustments</p>
+                    <div class="drop-zone" id="drop-other_pnl">
+                        <input type="file" accept=".xlsx,.xls" data-template="other_pnl">
+                        <span>Drop .xlsx or click to upload</span>
+                    </div>
+                    <div class="upload-status" id="status-other_pnl"></div>
+                </div>
+
                 <div class="upload-card action-card">
                     <div class="upload-icon">⚡</div>
                     <h3>Run Budget</h3>
@@ -347,18 +358,19 @@
         <span id="calc-status"></span>
     </footer>
 
-    <script src="js/config.js?v=20260508-lines-v3"></script>
-    <script src="js/calendars.js?v=20260508-lines-v3"></script>
-    <script src="js/supabase-client.js?v=20260508-lines-v3"></script>
-    <script src="js/excel-parser.js?v=20260508-lines-v3"></script>
-    <script src="js/weather.js?v=20260508-lines-v3"></script>
-    <script src="js/engine/sales-forecast.js?v=20260508-lines-v3"></script>
-    <script src="js/engine/labour-calc.js?v=20260508-lines-v3"></script>
-    <script src="js/engine/cogs-calc.js?v=20260508-lines-v3"></script>
-    <script src="js/engine/rent-calc.js?v=20260508-lines-v3"></script>
-    <script src="js/engine/pnl-builder.js?v=20260508-lines-v3"></script>
-    <script src="js/charts.js?v=20260508-lines-v3"></script>
-    <script src="js/export.js?v=20260508-lines-v3"></script>
-    <script src="js/app.js?v=20260508-lines-v3"></script>
+    <script src="js/config.js?v=20260509-other-pnl"></script>
+    <script src="js/calendars.js?v=20260509-other-pnl"></script>
+    <script src="js/supabase-client.js?v=20260509-other-pnl"></script>
+    <script src="js/excel-parser.js?v=20260509-other-pnl"></script>
+    <script src="js/weather.js?v=20260509-other-pnl"></script>
+    <script src="js/engine/sales-forecast.js?v=20260509-other-pnl"></script>
+    <script src="js/engine/labour-calc.js?v=20260509-other-pnl"></script>
+    <script src="js/engine/cogs-calc.js?v=20260509-other-pnl"></script>
+    <script src="js/engine/rent-calc.js?v=20260509-other-pnl"></script>
+    <script src="js/engine/other-pnl-calc.js?v=20260509-other-pnl"></script>
+    <script src="js/engine/pnl-builder.js?v=20260509-other-pnl"></script>
+    <script src="js/charts.js?v=20260509-other-pnl"></script>
+    <script src="js/export.js?v=20260509-other-pnl"></script>
+    <script src="js/app.js?v=20260509-other-pnl"></script>
 </body>
 </html>

@@ -38,7 +38,8 @@ const App = {
             avg_ticket: ExcelParser.parseAvgTicket.bind(ExcelParser),
             labour: ExcelParser.parseLabour.bind(ExcelParser),
             cogs: ExcelParser.parseCogs.bind(ExcelParser),
-            rent: ExcelParser.parseRent.bind(ExcelParser)
+            rent: ExcelParser.parseRent.bind(ExcelParser),
+            other_pnl: ExcelParser.parseOtherPnl.bind(ExcelParser)
         };
 
         for (const [key, parser] of Object.entries(templates)) {
@@ -214,6 +215,7 @@ const App = {
             const labourData = ExcelParser.uploads.labour;
             const cogsData = ExcelParser.uploads.cogs;
             const rentData = ExcelParser.uploads.rent;
+            const otherPnlData = ExcelParser.uploads.other_pnl;
             const priorPnl = ExcelParser.uploads.prior_pnl;
 
             const validationErrors = ExcelParser.validateCrossTemplate();
@@ -276,6 +278,7 @@ const App = {
                 labourAssumptions: labourData.records,
                 cogsAssumptions: cogsData.records,
                 rentAssumptions: rentData.records,
+                otherPnlAssumptions: otherPnlData?.records || [],
                 forecastStart,
                 forecastEnd
             });
@@ -291,8 +294,9 @@ const App = {
 
             const runName = document.getElementById('run-name').value || 'Budget';
             document.getElementById('run-name-display').textContent = runName;
-            const dailyAccountLines = PnlBuilder.dailyResults.length * CONFIG.PNL_LINE_ITEMS.length;
-            const monthlyAccountLines = PnlBuilder.monthlySummary.length * CONFIG.PNL_LINE_ITEMS.length;
+            const pnlLineCount = PnlBuilder.getPnlLineItems().length;
+            const dailyAccountLines = PnlBuilder.dailyResults.length * pnlLineCount;
+            const monthlyAccountLines = PnlBuilder.monthlySummary.length * pnlLineCount;
             document.getElementById('calc-status').textContent =
                 `${PnlBuilder.dailyResults.length.toLocaleString()} venue-day rows | ${dailyAccountLines.toLocaleString()} daily account lines | ${monthlyAccountLines.toLocaleString()} monthly account lines`;
 

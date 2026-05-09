@@ -403,6 +403,55 @@ const ExcelParser = {
         return { records, errors };
     },
 
+    parseOtherPnl(wb) {
+        const rows = this.sheetToRows(wb, 'Assumptions') || this.sheetToRows(wb);
+        const errors = [];
+        const records = [];
+
+        for (const row of rows) {
+            const accountCode = String(row.account_code || row['Account Code'] || '').trim();
+            const accountName = String(row.account_name || row['Account Name'] || '').trim();
+            if (!accountCode && !accountName) continue;
+
+            const active = String(row.active || row['Active'] || 'Y').trim().toUpperCase() !== 'N';
+            const venueName = String(row.venue_name || row['Venue Name'] || row['Venue'] || '').trim();
+            const allocationScope = String(row.allocation_scope || row['Allocation Scope'] || (venueName ? 'venue' : 'network_even')).trim().toLowerCase();
+            const budgetMethod = String(row.budget_method || row['Budget Method'] || 'monthly_amount').trim().toLowerCase();
+            const fallbackKey = `other_${String(`${accountCode}_${accountName}`).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').substring(0, 70)}`;
+            const accountKey = String(row.account_key || row['Account Key'] || fallbackKey).trim();
+
+            const record = {
+                active,
+                allocation_scope: allocationScope,
+                tracking_category_option1: String(row.tracking_category_option1 || row['TrackingCategoryOption1'] || '').trim(),
+                venue_name: venueName,
+                venue_key: this.normaliseVenueName(venueName),
+                account_code: accountCode,
+                account_name: accountName,
+                account_key: accountKey,
+                account_type: String(row.account_type || row['Account Type'] || 'Expense').trim(),
+                budget_method: budgetMethod,
+                base_monthly_amount: Number(row.base_monthly_amount || row['Base Monthly Amount'] || 0),
+                base_daily_amount: Number(row.base_daily_amount || row['Base Daily Amount'] || 0),
+                pct_of_sales: Number(row.pct_of_sales || row['Pct of Sales'] || 0),
+                effective_date: this.formatDate(row.effective_date || row['Effective Date'] || null),
+                adjustment_type: String(row.adjustment_type || row['Adjustment Type'] || '').trim().toLowerCase(),
+                adjustment_value: Number(row.adjustment_value || row['Adjustment Value'] || 0),
+                recommendation: String(row.recommendation || row['Recommendation'] || '').trim(),
+                notes: String(row.notes || row['Notes'] || '').trim()
+            };
+
+            if (record.pct_of_sales > 1) record.pct_of_sales = record.pct_of_sales / 100;
+            if (record.allocation_scope === 'venue' && !record.venue_name) {
+                errors.push(`${accountCode} ${accountName}: venue scope needs a venue_name`);
+                continue;
+            }
+            records.push(record);
+        }
+
+        return { records, errors };
+    },
+
     validateCrossTemplate() {
         const errors = [];
         const venueDetails = this.uploads.venue_details;
@@ -427,6 +476,12 @@ const ExcelParser = {
         if (this.uploads.labour) checkTemplate('Labour', this.uploads.labour.records, 'venue_key');
         if (this.uploads.cogs) checkTemplate('COGS', this.uploads.cogs.records, 'venue_key');
         if (this.uploads.rent) checkTemplate('Rent', this.uploads.rent.records, 'venue_key');
+        if (this.uploads.other_pnl) {
+            const venueRows = this.uploads.other_pnl.records.filter(r =>
+                r.allocation_scope === 'venue' && r.active !== false
+            );
+            checkTemplate('Other P&L', venueRows, 'venue_key');
+        }
 
         return errors;
     },
@@ -454,6 +509,9 @@ const ExcelParser = {
         }
         if (this.uploads.rent) {
             summary.rent = { records: this.uploads.rent.records.length };
+        }
+        if (this.uploads.other_pnl) {
+            summary.other_pnl = { records: this.uploads.other_pnl.records.length };
         }
         return summary;
     }

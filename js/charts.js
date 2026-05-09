@@ -219,14 +219,15 @@ const Charts = {
         this.destroy('chart-cost-structure');
         const kpis = PnlBuilder.getNetworkKPIs();
         const cogsPct = 100 - kpis.gpPct;
+        const otherPct = kpis.sales ? Math.max(0, (PnlBuilder.monthlySummary.reduce((s, m) => s + (m.other_pnl_total || 0), 0) / kpis.sales) * 100) : 0;
         const ctx = document.getElementById('chart-cost-structure').getContext('2d');
         this.instances['chart-cost-structure'] = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['COGS', 'Labour', 'Occupancy', 'Contribution'],
+                labels: ['COGS', 'Labour', 'Occupancy', 'Other P&L', 'Contribution'],
                 datasets: [{
-                    data: [cogsPct, kpis.labourPct, kpis.occupancyPct, kpis.contributionPct],
-                    backgroundColor: ['#ef4444', '#f59e0b', '#8b5cf6', '#10b981']
+                    data: [cogsPct, kpis.labourPct, kpis.occupancyPct, otherPct, kpis.contributionPct],
+                    backgroundColor: ['#ef4444', '#f59e0b', '#8b5cf6', '#14b8a6', '#10b981']
                 }]
             },
             options: {

@@ -21,7 +21,7 @@ For GitHub Pages:
 3. Open the app.
 4. Enter the Supabase URL and anon key in the Export tab.
 5. Enter the Render forecast API URL in the Upload tab.
-6. Upload the seven workbooks from `templates/`.
+6. Upload the core workbooks from `templates/`. The Other P&L workbook is optional, but should be used for a full P&L budget.
 7. Generate the budget.
 8. Export results or push to Supabase.
 
@@ -37,8 +37,9 @@ The `templates/` folder contains FY27-ready workbooks generated from the supplie
 - `05_Labour_Template.xlsx`
 - `06_COGS_Template.xlsx`
 - `07_Rent_Template.xlsx`
+- `08_Other_PnL_Template.xlsx` - new template for uncovered GL P&L accounts, recommendations, and dated adjustments
 
-The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v3.zip`.
+The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v4.zip`.
 
 ## Backend
 
