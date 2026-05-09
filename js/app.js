@@ -444,7 +444,7 @@ const App = {
         const thead = document.querySelector('#variance-table thead');
         const tbody = document.querySelector('#variance-table tbody');
 
-        thead.innerHTML = '<tr><th>Line Item</th><th class="number">Budget</th><th class="number">Prior Year</th><th class="number">Variance $</th><th class="number">Variance %</th></tr>';
+        thead.innerHTML = '<tr><th>Line Item</th><th class="number">Budget</th><th class="number">Prior Year Annualised</th><th class="number">Variance $</th><th class="number">Variance %</th></tr>';
         tbody.innerHTML = '';
 
         const fmt = (v) => '$' + Math.round(v).toLocaleString();

@@ -86,14 +86,18 @@ const ExportEngine = {
 
     exportVariance() {
         const variance = PnlBuilder.getVarianceTable('__all__');
-        const data = variance.map(v => ({
-            account_category: v.account_category || 'Uncategorised',
-            account_name: v.label,
-            budget: Math.round(this.signedAmount(v, v.budget)),
-            prior_year: Math.round(v.prior),
-            variance: Math.round(v.variance),
-            variance_pct: Math.round(v.variancePct * 10) / 10
-        }));
+        const data = variance.map(v => {
+            const budget = this.signedAmount(v, v.budget);
+            const prior = this.signedAmount(v, v.prior);
+            return {
+                account_category: v.account_category || 'Uncategorised',
+                account_name: v.label,
+                budget: Math.round(budget),
+                prior_year_annualised: Math.round(prior),
+                variance: Math.round(budget - prior),
+                variance_pct: prior ? Math.round(((budget - prior) / Math.abs(prior)) * 1000) / 10 : 0
+            };
+        });
         this.downloadXlsx(data, null, 'variance_account_lines.xlsx');
     },
 

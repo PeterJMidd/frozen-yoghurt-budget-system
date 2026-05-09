@@ -256,16 +256,69 @@ const PnlBuilder = {
         for (const vk of venues) {
             const venueData = this.priorPnlByVenue[vk];
             if (!venueData) continue;
+            const factor = this.getPriorAnnualisationFactor(vk, Object.keys(venueData));
             for (const monthData of Object.values(venueData)) {
                 for (const [item, amount] of Object.entries(monthData)) {
                     const mappedKey = this.mapPriorLineItem(item);
                     if (mappedKey) {
-                        totals[mappedKey] = (totals[mappedKey] || 0) + amount;
+                        totals[mappedKey] = (totals[mappedKey] || 0) + (amount * factor);
                     }
                 }
             }
         }
         return totals;
+    },
+
+    getPriorAnnualisationFactor(venueKey, monthKeys) {
+        const months = [...new Set((monthKeys || [])
+            .map(m => this.parseMonthKey(m))
+            .filter(Boolean)
+            .map(m => `${m.year}-${String(m.month).padStart(2, '0')}`))];
+
+        if (months.length === 0 || months.length >= 12) return 1;
+
+        const parsedMonths = months.map(m => this.parseMonthKey(`${m}-01`)).filter(Boolean);
+        if (!parsedMonths.length) return 1;
+
+        const first = parsedMonths
+            .slice()
+            .sort((a, b) => (a.year - b.year) || (a.month - b.month))[0];
+        const fyStartYear = first.month >= 7 ? first.year : first.year - 1;
+        const seasonality = SalesForecastEngine.getSeasonalityData(venueKey);
+        const monthIndices = seasonality?.month?.length === 12
+            ? seasonality.month
+            : Array(12).fill(1);
+
+        const monthWeight = (year, month) =>
+            this.daysInMonth(year, month) * (monthIndices[month - 1] || 1);
+
+        let fullYearWeight = 0;
+        for (let i = 0; i < 12; i++) {
+            const month = ((6 + i) % 12) + 1;
+            const year = month >= 7 ? fyStartYear : fyStartYear + 1;
+            fullYearWeight += monthWeight(year, month);
+        }
+
+        const coveredWeight = parsedMonths.reduce((sum, m) =>
+            sum + monthWeight(m.year, m.month), 0);
+
+        if (coveredWeight <= 0 || fullYearWeight <= 0) {
+            return 12 / Math.max(1, months.length);
+        }
+        return fullYearWeight / coveredWeight;
+    },
+
+    parseMonthKey(value) {
+        const match = String(value || '').match(/^(\d{4})-(\d{2})/);
+        if (!match) return null;
+        return {
+            year: Number(match[1]),
+            month: Number(match[2])
+        };
+    },
+
+    daysInMonth(year, month) {
+        return new Date(year, month, 0).getDate();
     },
 
     mapPriorLineItem(lineItem) {
