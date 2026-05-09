@@ -37,9 +37,9 @@ The `templates/` folder contains FY27-ready workbooks generated from the supplie
 - `05_Labour_Template.xlsx`
 - `06_COGS_Template.xlsx`
 - `07_Rent_Template.xlsx`
-- `08_Other_PnL_Template.xlsx` - new template for uncovered GL P&L accounts, recommendations, and dated adjustments
+- `08_Other_PnL_Template.xlsx` - template for uncovered GL P&L accounts, Build_NAME_L4 categories, recommendations, and dated adjustments
 
-The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v4.zip`.
+The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v5.zip`.
 
 ## Backend
 

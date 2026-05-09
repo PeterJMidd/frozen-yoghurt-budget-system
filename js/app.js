@@ -406,7 +406,7 @@ const App = {
         const thead = document.querySelector('#pnl-table thead');
         const tbody = document.querySelector('#pnl-table tbody');
 
-        let headerHtml = '<tr><th>Line Item</th>';
+        let headerHtml = '<tr><th>Category</th><th>Line Item</th>';
         for (const m of pnl.months) headerHtml += `<th class="number">${m.label}</th>`;
         headerHtml += '<th class="number">Total</th></tr>';
         thead.innerHTML = headerHtml;
@@ -423,12 +423,12 @@ const App = {
             if (row.type === 'subtotal' || row.type === 'total') tr.className = 'line-item-subtotal';
             if (row.type === 'revenue') tr.className = 'line-item-header';
 
-            let html = `<td>${row.label}</td>`;
+            let html = `<td>${row.account_category || 'Uncategorised'}</td><td>${row.label}</td>`;
             for (const m of pnl.months) {
                 const val = row.values[m.key] || 0;
-                html += `<td class="number">${fmt(val)}</td>`;
+                html += `<td class="number">${fmt(ExportEngine.signedAmount(row, val))}</td>`;
             }
-            html += `<td class="number" style="font-weight:600">${fmt(row.total)}</td>`;
+            html += `<td class="number" style="font-weight:600">${fmt(ExportEngine.signedAmount(row, row.total))}</td>`;
             tr.innerHTML = html;
             tbody.appendChild(tr);
         }

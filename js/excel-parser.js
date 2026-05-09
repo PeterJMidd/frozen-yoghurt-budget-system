@@ -430,6 +430,7 @@ const ExcelParser = {
                 account_name: accountName,
                 account_key: accountKey,
                 account_type: String(row.account_type || row['Account Type'] || 'Expense').trim(),
+                account_category: String(row.account_category || row['Account Category'] || row['Build_NAME_L4'] || 'Uncategorised').trim(),
                 budget_method: budgetMethod,
                 base_monthly_amount: Number(row.base_monthly_amount || row['Base Monthly Amount'] || 0),
                 base_daily_amount: Number(row.base_daily_amount || row['Base Daily Amount'] || 0),

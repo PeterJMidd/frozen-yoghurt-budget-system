@@ -135,7 +135,13 @@ const PnlBuilder = {
         const lineItems = this.getPnlLineItems();
 
         const rows = lineItems.map(item => {
-            const row = { key: item.key, label: item.label, type: item.type, values: {} };
+            const row = {
+                key: item.key,
+                label: item.label,
+                type: item.type,
+                account_category: item.account_category,
+                values: {}
+            };
             for (const period of months) {
                 const data = this.getPeriodData(venueKey, period);
                 row.values[period.key] = data ? (data[item.key] || 0) : 0;
@@ -155,7 +161,7 @@ const PnlBuilder = {
         return [
             ...base,
             ...this.otherPnlLineItems,
-            { key: 'other_pnl_total', label: 'Total Other P&L', type: 'subtotal' },
+            { key: 'other_pnl_total', label: 'Total Other P&L', type: 'subtotal', account_category: 'Other P&L' },
             contribution
         ].filter(Boolean);
     },
@@ -231,7 +237,9 @@ const PnlBuilder = {
 
         return budget.rows.map(row => ({
             label: row.label,
+            key: row.key,
             type: row.type,
+            account_category: row.account_category,
             budget: row.total,
             prior: priorData[row.key] || 0,
             variance: row.total - (priorData[row.key] || 0),

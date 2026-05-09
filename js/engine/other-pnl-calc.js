@@ -40,7 +40,8 @@ const OtherPnlCalcEngine = {
                     key: accountKey,
                     account_code: readableCode,
                     label: row.account_code ? `${row.account_code} - ${label}` : label,
-                    type: row.account_type || 'other_pnl'
+                    type: row.account_type || 'other_pnl',
+                    account_category: row.account_category || 'Uncategorised'
                 });
             }
 

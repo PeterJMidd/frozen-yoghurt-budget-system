@@ -151,6 +151,7 @@ CREATE TABLE IF NOT EXISTS daily_forecast_account_lines (
     account_code           TEXT NOT NULL,
     account_name           TEXT NOT NULL,
     account_type           TEXT,
+    account_category       TEXT,
     amount                 NUMERIC(14,2),
     forecast_transactions  INT,
     avg_ticket             NUMERIC(8,2),
@@ -168,6 +169,7 @@ CREATE TABLE IF NOT EXISTS monthly_summary_account_lines (
     account_code      TEXT NOT NULL,
     account_name      TEXT NOT NULL,
     account_type      TEXT,
+    account_category  TEXT,
     amount            NUMERIC(14,2),
     transaction_count INT,
     trading_days      INT,
@@ -176,6 +178,8 @@ CREATE TABLE IF NOT EXISTS monthly_summary_account_lines (
 
 CREATE INDEX IF NOT EXISTS idx_daily_forecast_date ON daily_forecast(run_id, forecast_date);
 CREATE INDEX IF NOT EXISTS idx_daily_forecast_venue ON daily_forecast(run_id, venue_id);
+ALTER TABLE daily_forecast_account_lines ADD COLUMN IF NOT EXISTS account_category TEXT;
+ALTER TABLE monthly_summary_account_lines ADD COLUMN IF NOT EXISTS account_category TEXT;
 CREATE INDEX IF NOT EXISTS idx_daily_account_lines_date ON daily_forecast_account_lines(run_id, forecast_date);
 CREATE INDEX IF NOT EXISTS idx_daily_account_lines_account ON daily_forecast_account_lines(run_id, account_code);
 CREATE INDEX IF NOT EXISTS idx_monthly_account_lines_month ON monthly_summary_account_lines(run_id, budget_month);

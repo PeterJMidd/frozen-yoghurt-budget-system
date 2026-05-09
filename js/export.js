@@ -1,4 +1,31 @@
 const ExportEngine = {
+    signedAmount(item, value) {
+        const amount = Math.round((Number(value || 0)) * 100) / 100;
+        const key = String(item.key || '').toLowerCase();
+        const type = String(item.type || '').toLowerCase();
+
+        if (key === 'net_sales' || key === 'gross_profit' || key === 'venue_contribution') {
+            return amount;
+        }
+        if (key === 'other_pnl_total') {
+            return Math.round((-amount) * 100) / 100;
+        }
+        if (type.includes('revenue') || type.includes('income')) {
+            return Math.abs(amount);
+        }
+        if (
+            type.includes('cogs') ||
+            type.includes('labour') ||
+            type.includes('occupancy') ||
+            type.includes('expense') ||
+            type.includes('other') ||
+            type === 'subtotal'
+        ) {
+            return -Math.abs(amount);
+        }
+        return amount;
+    },
+
     downloadXlsx(data, headers, filename) {
         const ws = XLSX.utils.json_to_sheet(data, { header: headers });
         const wb = XLSX.utils.book_new();
@@ -10,7 +37,7 @@ const ExportEngine = {
         this.downloadXlsx(
             this.getDailyAccountLines(),
             [
-                'venue', 'state', 'date', 'account_code', 'account_name', 'account_type',
+                'venue', 'state', 'date', 'account_code', 'account_name', 'account_type', 'account_category',
                 'amount', 'transactions', 'avg_ticket', 'ramp_up_multiplier',
                 'growth_multiplier', 'source', 'similar_venue_key'
             ],
@@ -23,7 +50,7 @@ const ExportEngine = {
             this.getMonthlyAccountLines(),
             [
                 'venue', 'state', 'budget_month', 'account_code', 'account_name',
-                'account_type', 'amount', 'transactions', 'trading_days'
+                'account_type', 'account_category', 'amount', 'transactions', 'trading_days'
             ],
             'monthly_summary_account_lines.xlsx'
         );
@@ -34,7 +61,7 @@ const ExportEngine = {
             this.getMonthlyAccountLines(),
             [
                 'venue', 'state', 'budget_month', 'account_code', 'account_name',
-                'account_type', 'amount', 'transactions', 'trading_days'
+                'account_type', 'account_category', 'amount', 'transactions', 'trading_days'
             ],
             'budget_pnl_account_lines.xlsx'
         );
@@ -60,8 +87,9 @@ const ExportEngine = {
     exportVariance() {
         const variance = PnlBuilder.getVarianceTable('__all__');
         const data = variance.map(v => ({
+            account_category: v.account_category || 'Uncategorised',
             account_name: v.label,
-            budget: Math.round(v.budget),
+            budget: Math.round(this.signedAmount(v, v.budget)),
             prior_year: Math.round(v.prior),
             variance: Math.round(v.variance),
             variance_pct: Math.round(v.variancePct * 10) / 10
@@ -81,7 +109,8 @@ const ExportEngine = {
                     account_code: item.account_code || item.key,
                     account_name: item.label,
                     account_type: item.type,
-                    amount: Math.round((f[item.key] || 0) * 100) / 100,
+                    account_category: item.account_category || 'Uncategorised',
+                    amount: this.signedAmount(item, f[item.key]),
                     transactions: item.key === 'net_sales' ? f.forecast_transactions : null,
                     avg_ticket: item.key === 'net_sales' ? f.avg_ticket : null,
                     ramp_up_multiplier: f.ramp_up_multiplier,
@@ -106,7 +135,8 @@ const ExportEngine = {
                     account_code: item.account_code || item.key,
                     account_name: item.label,
                     account_type: item.type,
-                    amount: Math.round((m[item.key] || 0) * 100) / 100,
+                    account_category: item.account_category || 'Uncategorised',
+                    amount: this.signedAmount(item, m[item.key]),
                     transactions: item.key === 'net_sales' ? m.transaction_count : null,
                     trading_days: item.key === 'net_sales' ? m.trading_days : null
                 });
@@ -128,7 +158,8 @@ const ExportEngine = {
                     account_code: item.account_code || item.key,
                     account_name: item.label,
                     account_type: item.type,
-                    amount: Math.round((f[item.key] || 0) * 100) / 100,
+                    account_category: item.account_category || 'Uncategorised',
+                    amount: this.signedAmount(item, f[item.key]),
                     forecast_transactions: item.key === 'net_sales' ? f.forecast_transactions : null,
                     avg_ticket: item.key === 'net_sales' ? f.avg_ticket : null,
                     ramp_up_multiplier: f.ramp_up_multiplier,
@@ -154,7 +185,8 @@ const ExportEngine = {
                     account_code: item.account_code || item.key,
                     account_name: item.label,
                     account_type: item.type,
-                    amount: Math.round((m[item.key] || 0) * 100) / 100,
+                    account_category: item.account_category || 'Uncategorised',
+                    amount: this.signedAmount(item, m[item.key]),
                     transaction_count: item.key === 'net_sales' ? m.transaction_count : null,
                     trading_days: item.key === 'net_sales' ? m.trading_days : null
                 });
@@ -246,13 +278,13 @@ const ExportEngine = {
         const wsOtherPnl = XLSX.utils.aoa_to_sheet([
             [
                 'active', 'allocation_scope', 'tracking_category_option1', 'venue_name',
-                'account_code', 'account_name', 'account_key', 'account_type',
+                'account_code', 'account_name', 'account_key', 'account_type', 'account_category',
                 'budget_method', 'base_monthly_amount', 'base_daily_amount', 'pct_of_sales',
                 'effective_date', 'adjustment_type', 'adjustment_value', 'recommendation', 'notes'
             ],
             [
                 'Y', 'venue', '01. EXAMPLE.VIC', 'Venue 1',
-                '63001', 'Cleaning & disposables', 'other_63001_cleaning_disposables', 'Expense',
+                '63001', 'Cleaning & disposables', 'other_63001_cleaning_disposables', 'Expense', '3.3 Other Operating Expenses',
                 'daily_amount', 0, 25, 0,
                 '', '', '', 'Use recent actual daily run-rate and adjust for known contract changes.', ''
             ]
