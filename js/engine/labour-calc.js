@@ -59,9 +59,20 @@ const LabourCalcEngine = {
         const rates = awardLevel[employmentType] || awardLevel.casual;
         const dayType = this.getLabourDayType(forecast);
         const overrideRate = labour[`award_${dayType}_rate`];
-        if (overrideRate > 0) return overrideRate;
+        const rate = overrideRate > 0 ? overrideRate : (rates[dayType] || rates.weekday);
+        return this.applyAwardIncrease(rate, forecast, labour);
+    },
 
-        return rates[dayType] || rates.weekday;
+    applyAwardIncrease(rate, forecast, labour) {
+        const increaseDate = labour.award_increase_date || CONFIG.FAST_FOOD_AWARD.scheduled_increase_date;
+        let increasePct = labour.award_increase_pct;
+        if (increasePct == null || isNaN(increasePct)) {
+            increasePct = CONFIG.FAST_FOOD_AWARD.scheduled_increase_pct || 0;
+        }
+        if (!increaseDate || String(forecast.forecast_date) < String(increaseDate)) {
+            return rate;
+        }
+        return Math.round(rate * (1 + increasePct) * 100) / 100;
     },
 
     getLabourDayType(forecast) {

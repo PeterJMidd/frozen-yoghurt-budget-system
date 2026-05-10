@@ -206,6 +206,7 @@ const SalesForecastEngine = {
 
         for (const venue of venueDetails) {
             if (!venue.is_active) continue;
+            const openingDate = new Date(venue.opening_date);
 
             const newVenue = newVenueAssumptions[venue.venue_key];
             const similarVenueKey = venue.similar_venue_key || newVenue?.similar_venue_key;
@@ -226,20 +227,21 @@ const SalesForecastEngine = {
                 const publicHolidayName = CALENDARS.getPublicHolidayName(dateStr, venue.state);
                 const priorComparableDate = CALENDARS.getPriorYearComparableDate(dateStr, venue.state);
 
+                if (current < openingDate) {
+                    current.setDate(current.getDate() + 1);
+                    continue;
+                }
+
                 const rampUp = this.getRampUpMultiplier(venue, dateStr, rampUpData);
                 const growthMultiplier = this.getGrowthMultiplier(
                     venue, dateStr, forecastStart, monthlyGrowthData, newVenueAssumptions
                 );
 
-                if (rampUp === 0) {
-                    current.setDate(current.getDate() + 1);
-                    continue;
-                }
-
                 let forecastSales;
 
-                // Prefer API forecast (Prophet/SARIMA) if available
-                if (this.useApi && apiData && apiData[dateStr] != null) {
+                if (rampUp === 0) {
+                    forecastSales = 0;
+                } else if (this.useApi && apiData && apiData[dateStr] != null) {
                     forecastSales = apiData[dateStr] * rampUp;
                 } else {
                     // Fallback: local seasonality model
@@ -330,11 +332,7 @@ const SalesForecastEngine = {
         const monthsElapsed = (forecastDate.getFullYear() - startDate.getFullYear()) * 12 +
             (forecastDate.getMonth() - startDate.getMonth());
         const cappedMonth = Math.min(monthsElapsed, growth.length - 1);
-
-        let multiplier = 1.0;
-        for (let i = 0; i <= cappedMonth; i++) {
-            multiplier *= 1 + (growth[i] || 0);
-        }
+        const multiplier = 1 + (growth[cappedMonth] || 0);
         return Math.round(multiplier * 10000) / 10000;
     },
 

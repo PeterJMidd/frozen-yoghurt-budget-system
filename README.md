@@ -31,15 +31,17 @@ The `templates/` folder contains FY27-ready workbooks generated from the supplie
 
 - `01_Sales_History_Template.xlsx`
 - `02_Prior_PnL_Template.xlsx`
-- `03_Venue_Details_Template.xlsx`
-- `03_Venue_Details_Template_v2.xlsx` - updated with monthly growth and new venue assumptions
+- `03_Venue_Details_Template.xlsx` - includes monthly growth modifiers, first-month zero ramp for new venues, and 17 FY27 new company venue examples
+- `03_Venue_Details_Template_v2.xlsx` - compatibility copy of the same venue detail template
 - `04_Avg_Ticket_Template.xlsx`
-- `05_Labour_Template.xlsx` - updated with Fast Food Award day-type rates for age 21+ casual Level 1 crew labour
-- `06_COGS_Template.xlsx`
-- `07_Rent_Template.xlsx`
-- `08_Other_PnL_Template.xlsx` - venue-only template for uncovered GL P&L accounts, Build_NAME_L4 categories, recommendations, seasonality-annualised prior comparison, and dated adjustments
+- `05_Labour_Template.xlsx` - Fast Food Award day-type rates for age 21+ casual Level 1 crew labour, with a configurable 4% scheduled increase from 1 July 2026
+- `06_COGS_Template.xlsx` - FY26 actual COGS mix with a 0.5 percentage point improvement applied
+- `07_Rent_Template.xlsx` - rent and outgoings uplifted by 3.5% CPI
+- `08_Other_PnL_Template.xlsx` - venue-only template for uncovered GL P&L accounts, Build_NAME_L4 categories, 3.5% CPI operating cost baselines, recommendations, seasonality-annualised prior comparison, and dated adjustments
 
-The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v7.zip`.
+The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates-fy27-v8.zip`.
+
+The model excludes franchise/non-company venues Charlestown, Erina Fair, and Wollongong from uploads and generated assumptions.
 
 ## Backend
 

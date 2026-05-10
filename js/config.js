@@ -14,6 +14,8 @@ const CONFIG = {
 
     FAST_FOOD_AWARD: {
         effective_from: '2025-07-01',
+        scheduled_increase_date: '2026-07-01',
+        scheduled_increase_pct: 0.04,
         default_level: 1,
         default_average_age: 21,
         default_employment_type: 'casual',
@@ -35,6 +37,18 @@ const CONFIG = {
             }
         }
     },
+
+    EXCLUDED_VENUE_KEYS: [
+        'yo-chi charlestown',
+        'yo chi charlestown',
+        'charlestown',
+        'yo-chi erina fair',
+        'yo chi erina fair',
+        'erina fair',
+        'yo-chi wollongong',
+        'yo chi wollongong',
+        'wollongong'
+    ],
 
     STATE_COORDS: {
         NSW: { lat: -33.87, lon: 151.21 },

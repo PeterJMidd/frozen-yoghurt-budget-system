@@ -22,6 +22,14 @@ const ExcelParser = {
         return String(name).trim().toLowerCase().replace(/\s+/g, ' ');
     },
 
+    isExcludedVenueName(name) {
+        const key = this.normaliseVenueName(name);
+        if (!key) return false;
+        return (CONFIG.EXCLUDED_VENUE_KEYS || []).some(excluded =>
+            key === excluded || key.includes(excluded)
+        );
+    },
+
     formatDate(d) {
         if (!d) return null;
         if (d instanceof Date) {
@@ -86,6 +94,7 @@ const ExcelParser = {
             const row = data[r];
             const venueName = String(row[venueCol] || '').trim();
             if (!venueName) continue;
+            if (this.isExcludedVenueName(venueName)) continue;
 
             for (const dc of dateColumns) {
                 const val = row[dc.col];
@@ -122,6 +131,7 @@ const ExcelParser = {
                 venueName = String(data[0][1]).trim();
                 headerRowIndex = 1;
             }
+            if (this.isExcludedVenueName(venueName)) continue;
 
             const headers = data[headerRowIndex];
             const monthColumns = [];
@@ -175,6 +185,7 @@ const ExcelParser = {
             const isActive = row.is_active !== false && row.is_active !== 'N' && row.is_active !== 0;
 
             if (!name) continue;
+            if (this.isExcludedVenueName(name)) continue;
             if (!CONFIG.STATES.includes(state)) {
                 errors.push(`Venue "${name}": invalid state "${state}"`);
                 continue;
@@ -199,6 +210,7 @@ const ExcelParser = {
                     const row = rampData[r];
                     const name = String(row[0] || '').trim();
                     if (!name) continue;
+                    if (this.isExcludedVenueName(name)) continue;
                     const key = this.normaliseVenueName(name);
                     rampUp[key] = [];
                     for (let m = 1; m <= 18; m++) {
@@ -217,6 +229,7 @@ const ExcelParser = {
                     const row = growthData[r];
                     const name = String(row[0] || '').trim();
                     if (!name) continue;
+                    if (this.isExcludedVenueName(name)) continue;
                     const key = this.normaliseVenueName(name);
                     monthlyGrowth[key] = [];
                     for (let m = 1; m <= 18; m++) {
@@ -233,6 +246,7 @@ const ExcelParser = {
             for (const row of rows) {
                 const name = String(row.venue_name || row['Venue Name'] || row['Venue'] || '').trim();
                 if (!name) continue;
+                if (this.isExcludedVenueName(name)) continue;
 
                 const state = String(row.state || row['State'] || '').trim().toUpperCase();
                 const openingDate = this.formatDate(row.opening_date || row['Opening Date'] || row['opening date']);
@@ -300,6 +314,7 @@ const ExcelParser = {
             const row = data[r];
             const name = String(row[0] || '').trim();
             if (!name) continue;
+            if (this.isExcludedVenueName(name)) continue;
             const key = this.normaliseVenueName(name);
 
             for (const mc of monthColumns) {
@@ -326,6 +341,7 @@ const ExcelParser = {
         for (const row of rows) {
             const name = String(row.venue_name || row['Venue Name'] || row['Venue'] || '').trim();
             if (!name) continue;
+            if (this.isExcludedVenueName(name)) continue;
 
             records.push({
                 venue_name: name,
@@ -342,7 +358,9 @@ const ExcelParser = {
                 award_weekday_rate: Number(row.award_weekday_rate || row['Award Weekday Rate'] || 0),
                 award_saturday_rate: Number(row.award_saturday_rate || row['Award Saturday Rate'] || 0),
                 award_sunday_rate: Number(row.award_sunday_rate || row['Award Sunday Rate'] || 0),
-                award_public_holiday_rate: Number(row.award_public_holiday_rate || row['Award Public Holiday Rate'] || 0)
+                award_public_holiday_rate: Number(row.award_public_holiday_rate || row['Award Public Holiday Rate'] || 0),
+                award_increase_date: this.formatDate(row.award_increase_date || row['Award Increase Date'] || CONFIG.FAST_FOOD_AWARD.scheduled_increase_date),
+                award_increase_pct: Number(row.award_increase_pct || row['Award Increase %'] || (CONFIG.FAST_FOOD_AWARD.scheduled_increase_pct * 100) || 0) / 100
             });
         }
 
@@ -358,6 +376,7 @@ const ExcelParser = {
         for (const row of rows) {
             const name = String(row.venue_name || row['Venue Name'] || row['Venue'] || '').trim();
             if (!name) continue;
+            if (this.isExcludedVenueName(name)) continue;
             const key = this.normaliseVenueName(name);
 
             const categories = [
@@ -396,6 +415,7 @@ const ExcelParser = {
         for (const row of rows) {
             const name = String(row.venue_name || row['Venue Name'] || row['Venue'] || '').trim();
             if (!name) continue;
+            if (this.isExcludedVenueName(name)) continue;
 
             records.push({
                 venue_name: name,
@@ -423,6 +443,7 @@ const ExcelParser = {
 
             const active = String(row.active || row['Active'] || 'Y').trim().toUpperCase() !== 'N';
             const venueName = String(row.venue_name || row['Venue Name'] || row['Venue'] || '').trim();
+            if (this.isExcludedVenueName(venueName)) continue;
             const allocationScope = String(row.allocation_scope || row['Allocation Scope'] || (venueName ? 'venue' : 'network_even')).trim().toLowerCase();
             const budgetMethod = String(row.budget_method || row['Budget Method'] || 'monthly_amount').trim().toLowerCase();
             const fallbackKey = `other_${String(`${accountCode}_${accountName}`).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').substring(0, 70)}`;
