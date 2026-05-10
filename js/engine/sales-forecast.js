@@ -3,6 +3,7 @@ const SalesForecastEngine = {
     baseDailySales: {},
     dailyForecasts: [],
     apiForecasts: {},
+    apiModels: {},
     salesHistoryLookup: {},
     useApi: false,
 
@@ -24,8 +25,13 @@ const SalesForecastEngine = {
             const venue = venueMap[venueKey];
             if (!venue) continue;
 
-            const totalSales = sales.reduce((sum, s) => sum + s.gross_sales, 0);
-            const avgDaily = totalSales / sales.length;
+            const matureSales = this.getLikeForLikeSales(sales, venue);
+            const modellingSales = matureSales.length >= 90
+                ? matureSales
+                : sales.filter(s => Number(s.gross_sales || 0) > 0);
+            if (!modellingSales.length) continue;
+
+            const avgDaily = modellingSales.reduce((sum, s) => sum + s.gross_sales, 0) / modellingSales.length;
             this.baseDailySales[venueKey] = avgDaily;
 
             const dowBuckets = Array.from({ length: 7 }, () => ({ total: 0, count: 0 }));
@@ -34,50 +40,100 @@ const SalesForecastEngine = {
             const schoolBucket = { total: 0, count: 0 };
             const normalBucket = { total: 0, count: 0 };
 
+            if (!this.salesHistoryLookup[venueKey]) this.salesHistoryLookup[venueKey] = {};
             for (const s of sales) {
-                if (!this.salesHistoryLookup[venueKey]) this.salesHistoryLookup[venueKey] = {};
                 this.salesHistoryLookup[venueKey][s.sale_date] = s.gross_sales;
+            }
+
+            for (const s of modellingSales) {
+                const amount = Number(s.gross_sales || 0);
+                if (amount <= 0) continue;
 
                 const d = new Date(s.sale_date);
                 const dow = (d.getDay() + 6) % 7;
-                const month = d.getMonth();
 
-                dowBuckets[dow].total += s.gross_sales;
+                dowBuckets[dow].total += amount;
                 dowBuckets[dow].count++;
-                monthBuckets[month].total += s.gross_sales;
-                monthBuckets[month].count++;
-
-                if (CALENDARS.isPublicHoliday(s.sale_date, venue.state)) {
-                    holidayBucket.total += s.gross_sales;
-                    holidayBucket.count++;
-                } else if (CALENDARS.isSchoolHoliday(s.sale_date, venue.state)) {
-                    schoolBucket.total += s.gross_sales;
-                    schoolBucket.count++;
-                } else {
-                    normalBucket.total += s.gross_sales;
-                    normalBucket.count++;
-                }
             }
 
             const dowIndices = dowBuckets.map(b =>
                 b.count > 0 ? (b.total / b.count) / avgDaily : 1.0
             );
 
-            const monthIndices = monthBuckets.map(b =>
-                b.count > 0 ? (b.total / b.count) / avgDaily : 1.0
-            );
+            for (const s of modellingSales) {
+                const amount = Number(s.gross_sales || 0);
+                if (amount <= 0) continue;
+
+                const d = new Date(s.sale_date);
+                const dow = (d.getDay() + 6) % 7;
+                const month = d.getMonth();
+                const dowAdjustedSales = amount / (dowIndices[dow] || 1.0);
+                const weatherIndex = WeatherEngine.getWeatherIndexForDate(venue.state, s.sale_date) || 1.0;
+                const adjustedSales = dowAdjustedSales / weatherIndex;
+
+                if (CALENDARS.isPublicHoliday(s.sale_date, venue.state)) {
+                    holidayBucket.total += adjustedSales;
+                    holidayBucket.count++;
+                } else if (CALENDARS.isSchoolHoliday(s.sale_date, venue.state)) {
+                    schoolBucket.total += adjustedSales;
+                    schoolBucket.count++;
+                } else {
+                    normalBucket.total += adjustedSales;
+                    normalBucket.count++;
+                    monthBuckets[month].total += adjustedSales;
+                    monthBuckets[month].count++;
+                }
+            }
 
             const normalAvg = normalBucket.count > 0 ? normalBucket.total / normalBucket.count : avgDaily;
+
+            const monthIndices = monthBuckets.map(b =>
+                b.count >= 7 ? (b.total / b.count) / normalAvg : 1.0
+            );
+            this.normaliseIndices(monthIndices);
+
             const holidayIndex = holidayBucket.count > 0 ? (holidayBucket.total / holidayBucket.count) / normalAvg : 1.15;
             const schoolIndex = schoolBucket.count > 0 ? (schoolBucket.total / schoolBucket.count) / normalAvg : 1.10;
 
             this.seasonalityIndices[venueKey] = {
                 dow: dowIndices,
                 month: monthIndices,
-                publicHoliday: holidayIndex,
-                schoolHoliday: schoolIndex
+                publicHoliday: Math.max(0.5, Math.min(1.8, holidayIndex)),
+                schoolHoliday: Math.max(0.5, Math.min(1.8, schoolIndex)),
+                historyDays: modellingSales.length,
+                likeForLikeDays: matureSales.length
             };
         }
+    },
+
+    getLikeForLikeSales(sales, venue) {
+        const sorted = (sales || [])
+            .filter(s => Number(s.gross_sales || 0) > 0)
+            .sort((a, b) => a.sale_date.localeCompare(b.sale_date));
+        if (!sorted.length) return [];
+
+        const historyEnd = new Date(sorted[sorted.length - 1].sale_date);
+        const historyStart = new Date(historyEnd);
+        historyStart.setMonth(historyStart.getMonth() - 24);
+
+        const openingDate = new Date(venue.opening_date || '1900-01-01');
+        const matureDate = new Date(openingDate);
+        matureDate.setDate(matureDate.getDate() + 365);
+
+        return sorted.filter(s => {
+            const d = new Date(s.sale_date);
+            return d >= historyStart && d >= matureDate;
+        });
+    },
+
+    normaliseIndices(indices) {
+        const valid = indices.filter(v => Number.isFinite(v) && v > 0);
+        const avg = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : 1;
+        for (let i = 0; i < indices.length; i++) {
+            const value = Number.isFinite(indices[i]) && indices[i] > 0 ? indices[i] : avg;
+            indices[i] = Math.round((value / avg) * 10000) / 10000;
+        }
+        return indices;
     },
 
     // Call your existing venu-cast-api /forecast-multi endpoint
@@ -102,18 +158,24 @@ const SalesForecastEngine = {
         }
 
         this.apiForecasts = {};
+        this.apiModels = {};
         let done = 0;
 
         for (const batch of batches) {
             const venues = [];
             for (const venueKey of batch) {
-                const sales = grouped[venueKey].sort((a, b) => a.sale_date.localeCompare(b.sale_date));
+                const sales = grouped[venueKey]
+                    .filter(s => Number(s.gross_sales || 0) > 0)
+                    .sort((a, b) => a.sale_date.localeCompare(b.sale_date));
+                if (!sales.length) continue;
                 const venue = venueDetails.find(v => v.venue_key === venueKey);
                 const historyStart = sales[0]?.sale_date;
                 const historyEnd = sales[sales.length - 1]?.sale_date;
-                const apiForecastEnd = historyEnd
-                    ? this.addDays(historyEnd, forecastDays)
-                    : CONFIG.BUDGET_YEAR_END;
+                const daysToBudgetEnd = historyEnd
+                    ? this.daysBetween(historyEnd, CONFIG.BUDGET_YEAR_END)
+                    : forecastDays;
+                const venueForecastDays = Math.max(forecastDays, daysToBudgetEnd);
+                const apiForecastEnd = this.addDays(historyEnd, venueForecastDays);
                 const holidayDates = venue
                     ? CALENDARS.getHolidayDatesForState(venue.state, historyStart, apiForecastEnd)
                     : [];
@@ -126,11 +188,12 @@ const SalesForecastEngine = {
                     state: venue?.state || null,
                     dates: sales.map(s => s.sale_date),
                     values: sales.map(s => s.gross_sales),
-                    forecast_days: forecastDays,
+                    forecast_days: venueForecastDays,
                     holiday_dates: holidayDates,
                     weather_map: weatherMap
                 });
             }
+            if (!venues.length) continue;
 
             try {
                 const resp = await fetch(`${apiUrl}/forecast-multi`, {
@@ -147,6 +210,7 @@ const SalesForecastEngine = {
                     const forecastValues = forecast.forecast_values || forecast.forecast;
                     if (forecast.forecast_dates && forecastValues) {
                         this.apiForecasts[venueKey] = {};
+                        this.apiModels[venueKey] = forecast.model || null;
                         for (let i = 0; i < forecast.forecast_dates.length; i++) {
                             this.apiForecasts[venueKey][forecast.forecast_dates[i]] =
                                 forecastValues[i];
@@ -168,6 +232,12 @@ const SalesForecastEngine = {
         const date = new Date(dateStr);
         date.setDate(date.getDate() + days);
         return date.toISOString().substring(0, 10);
+    },
+
+    daysBetween(startDate, endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
     },
 
     getRampUpMultiplier(venue, dateStr, rampUpData) {
@@ -356,6 +426,7 @@ const SalesForecastEngine = {
             const allMonth = Array(12).fill(0);
             let count = 0;
             for (const s of Object.values(this.seasonalityIndices)) {
+                if ((s.likeForLikeDays || 0) < 90) continue;
                 for (let i = 0; i < 7; i++) allDow[i] += s.dow[i];
                 for (let i = 0; i < 12; i++) allMonth[i] += s.month[i];
                 count++;
