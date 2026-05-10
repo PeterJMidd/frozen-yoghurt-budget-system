@@ -28,10 +28,19 @@ const OtherPnlCalcEngine = {
         const networkRows = [];
         const itemMap = new Map();
 
+        const revenueTypes = (CONFIG.OTHER_PNL_REVENUE_TYPES || []).map(t => t.toLowerCase());
+        const isRevenueType = (t) => {
+            const v = String(t || '').toLowerCase();
+            return revenueTypes.some(r => v.includes(r));
+        };
+
         for (const row of activeAssumptions) {
             const accountKey = row.account_key || this.accountKey(row.account_code, row.account_name);
             const prepared = { ...row, account_key: accountKey };
             const label = row.account_name || accountKey;
+            const isRevenue = isRevenueType(row.account_type);
+            // Sign: +1 = income (adds to contribution), -1 = expense (subtracts).
+            prepared._sign = isRevenue ? 1 : -1;
             if (!itemMap.has(accountKey)) {
                 const readableCode = row.account_code
                     ? `${row.account_code}_${String(label).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').substring(0, 50)}`
@@ -40,7 +49,7 @@ const OtherPnlCalcEngine = {
                     key: accountKey,
                     account_code: readableCode,
                     label: row.account_code ? `${row.account_code} - ${label}` : label,
-                    type: row.account_type || 'other_pnl',
+                    type: isRevenue ? 'other_income' : 'other_pnl',
                     account_category: row.account_category || 'Uncategorised'
                 });
             }
@@ -67,9 +76,12 @@ const OtherPnlCalcEngine = {
             ];
 
             for (const row of rows) {
-                const amount = this.dailyAmount(row, f, budgetDays) / (row.network_divisor || 1);
-                f[row.account_key] = Math.round(((f[row.account_key] || 0) + amount) * 100) / 100;
-                f.other_pnl_total = Math.round((f.other_pnl_total + amount) * 100) / 100;
+                const sign = Number(row._sign || -1);  // -1 expense (default), +1 income
+                const rawAmount = this.dailyAmount(row, f, budgetDays) / (row.network_divisor || 1);
+                // Store the line value as a *signed contribution to venue P&L*: income +ve, expense -ve.
+                const signed = Math.abs(rawAmount) * sign;
+                f[row.account_key] = Math.round(((f[row.account_key] || 0) + signed) * 100) / 100;
+                f.other_pnl_total = Math.round((f.other_pnl_total + signed) * 100) / 100;
             }
         }
     },

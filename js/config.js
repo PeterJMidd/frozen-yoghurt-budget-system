@@ -72,11 +72,12 @@ const CONFIG = {
     ],
 
     PNL_LINE_ITEMS: [
+        { key: 'gross_sales', label: 'Gross Sales', type: 'revenue', account_category: '1.0 Trade Revenue' },
+        { key: 'cogs_discounts', label: 'Discounts', type: 'discount', account_category: '1.0 Trade Revenue' },
         { key: 'net_sales', label: 'Net Sales', type: 'revenue', account_category: '1.0 Trade Revenue' },
         { key: 'cogs_food', label: 'COGS - Food', type: 'cogs', account_category: '2.0 Servings Cost' },
         { key: 'cogs_packaging', label: 'COGS - Packaging', type: 'cogs', account_category: '2.1 Packaging Cost' },
         { key: 'cogs_retail', label: 'COGS - Retail', type: 'cogs', account_category: '2.3 Retail Costs' },
-        { key: 'cogs_discounts', label: 'COGS - Discounts', type: 'cogs', account_category: '1.0 Trade Revenue' },
         { key: 'cogs_total', label: 'Total COGS', type: 'subtotal', account_category: '2 Cost of Sales' },
         { key: 'gross_profit', label: 'Gross Profit', type: 'subtotal', account_category: 'Gross Profit' },
         { key: 'crew_labour_cost', label: 'Labour - Crew', type: 'labour', account_category: '3.1 Wages & Salaries' },
@@ -94,8 +95,29 @@ const CONFIG = {
 
     SUPABASE_BATCH_SIZE: 500,
     RAMP_UP_MONTHS: 18,
-    FORECAST_BATCH_SIZE: 10,  // venues per API call to forecast-multi
+    FORECAST_BATCH_SIZE: 8,            // Render Standard (2GB) — bigger batches = fewer round-trips
+    FORECAST_API_TIMEOUT_MS: 90000,    // per batch; cold Render Starter wakes can take 30-60s
+    FORECAST_API_RETRIES: 1,           // retry once on timeout / 5xx before falling back to local
 
     DAYS_OF_WEEK: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    MONTHS: ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+    MONTHS: ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+
+    // Account types treated as revenue/contra-cost in Other P&L sign handling
+    OTHER_PNL_REVENUE_TYPES: ['revenue', 'income', 'other income', 'rebate', 'credit', 'refund'],
+
+    // Upload-time reasonableness bands. % values are fractions (0.18 == 18%).
+    SANITY_BANDS: {
+        cogs_food:        { min: 0.12, max: 0.40, label: 'COGS Food %' },
+        cogs_packaging:   { min: 0.01, max: 0.12, label: 'COGS Packaging %' },
+        cogs_retail:      { min: 0.00, max: 0.10, label: 'COGS Retail %' },
+        cogs_discounts:   { min: 0.00, max: 0.15, label: 'COGS Discount %' },
+        labour_oncosts:   { min: 0.05, max: 0.30, label: 'Crew Oncosts %' },
+        mgmt_oncosts:     { min: 0.05, max: 0.30, label: 'Mgmt Oncosts %' },
+        marketing_levy:   { min: 0.00, max: 0.05, label: 'Marketing Levy %' },
+        pct_rent_rate:    { min: 0.00, max: 0.15, label: '% Rent Rate' },
+        award_increase:   { min: 0.00, max: 0.20, label: 'Award Increase %' },
+        splh:             { min: 40,   max: 400,  label: 'Sales per Labour Hour' },
+        hourly_rate:      { min: 18,   max: 100,  label: 'Hourly Rate' },
+        mgmt_salary:      { min: 1000, max: 30000, label: 'Mgmt Monthly Salary' }
+    }
 };

@@ -2,6 +2,14 @@ const WeatherEngine = {
     weatherData: {},
     tempBandIndices: {},
 
+    formatLocalDate(d) {
+        return [
+            d.getFullYear(),
+            String(d.getMonth() + 1).padStart(2, '0'),
+            String(d.getDate()).padStart(2, '0')
+        ].join('-');
+    },
+
     async fetchHistoricalWeather(states, startDate, endDate, onProgress) {
         const results = {};
         let done = 0;
@@ -23,13 +31,16 @@ const WeatherEngine = {
                 const daily = json.daily;
                 results[state] = [];
                 for (let i = 0; i < daily.time.length; i++) {
+                    const sunshineSec = daily.sunshine_duration ? daily.sunshine_duration[i] : null;
                     results[state].push({
                         state,
                         observation_date: daily.time[i],
                         max_temp_c: daily.temperature_2m_max[i],
                         min_temp_c: daily.temperature_2m_min[i],
                         rainfall_mm: daily.precipitation_sum[i],
-                        sunshine_hours: daily.sunshine_duration ? daily.sunshine_duration[i] / 3600 : null
+                        sunshine_hours: sunshineSec != null && !Number.isNaN(Number(sunshineSec))
+                            ? Number(sunshineSec) / 3600
+                            : null
                     });
                 }
             } catch (err) {
@@ -154,12 +165,12 @@ const WeatherEngine = {
 
     buildWeatherMapForState(state, startDate, endDate) {
         const map = {};
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = new Date(`${startDate}T00:00:00`);
+        const end = new Date(`${endDate}T00:00:00`);
         const current = new Date(start);
 
         while (current <= end) {
-            const dateStr = current.toISOString().substring(0, 10);
+            const dateStr = this.formatLocalDate(current);
             const weather = this.getWeatherForForecastDate(state, dateStr);
             if (weather) {
                 map[dateStr] = {

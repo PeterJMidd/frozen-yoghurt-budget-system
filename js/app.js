@@ -19,6 +19,7 @@ const App = {
                 if (tab.dataset.tab === 'sales-forecast' && this.budgetReady) {
                     const venueKey = document.getElementById('forecast-venue-filter').value;
                     Charts.renderAllSalesCharts(venueKey);
+                    this.renderForecastDiagnostics();
                 }
                 if (tab.dataset.tab === 'sales-detail' && this.budgetReady) {
                     this.renderSalesDetail();
@@ -59,12 +60,15 @@ const App = {
                     ExcelParser.uploads[key] = result;
 
                     const count = result.records?.length || result.venues?.length || 0;
-                    status.textContent = `Loaded: ${count} records`;
-                    status.className = 'upload-status success';
+                    const sanity = ExcelParser.sanityWarnings(key, result) || [];
+                    const errorCount = result.errors?.length || 0;
+                    const warnCount = errorCount + sanity.length;
 
-                    if (result.errors?.length) {
-                        status.textContent += ` (${result.errors.length} warnings)`;
-                    }
+                    status.textContent = `Loaded: ${count} records` + (warnCount ? ` (${warnCount} warning(s))` : '');
+                    status.className = warnCount ? 'upload-status warning' : 'upload-status success';
+                    status.title = [...(result.errors || []), ...sanity].slice(0, 30).join('\n');
+                    if (sanity.length) console.warn(`[${key}] sanity warnings:`, sanity);
+                    result.sanityWarnings = sanity;
 
                     this.updateRunButton();
                     this.showPreview(key, result);
@@ -131,7 +135,21 @@ const App = {
                     fill.style.width = `${pct}%`;
                     text.textContent = msg;
                 });
-                text.textContent = `Done! Run ID: ${result.runId} | ${result.dailyAccountRows.toLocaleString()} daily account lines pushed`;
+                const a = result.assumptions || {};
+                const assumptionParts = [
+                    `${result.dailyAccountRows.toLocaleString()} daily account lines`,
+                    `${result.monthlyAccountRows.toLocaleString()} monthly`,
+                    `${(a.sales_history || 0).toLocaleString()} sales-history`,
+                    `${(a.prior_pnl || 0).toLocaleString()} prior-PNL`,
+                    `${(a.weather_data || 0).toLocaleString()} weather`,
+                    `${(a.avg_ticket || 0).toLocaleString()} avg-ticket`,
+                    `${(a.labour || 0).toLocaleString()} labour`,
+                    `${(a.cogs || 0).toLocaleString()} COGS`,
+                    `${(a.rent || 0).toLocaleString()} rent`,
+                    `${(a.venue_ramp_up || 0).toLocaleString()} ramp-up`
+                ].join(' | ');
+                text.textContent = `Done! Run ${result.runId} | ${assumptionParts}` +
+                    (result.warnings?.length ? ` | ${result.warnings.length} warning(s) — see console` : '');
             } catch (err) {
                 text.textContent = `Error: ${err.message}`;
                 fill.style.width = '0%';
@@ -648,6 +666,65 @@ const App = {
     renderDashboard() {
         this.updateKPIs();
         Charts.renderAllDashboardCharts();
+    },
+
+    renderForecastDiagnostics() {
+        const table = document.getElementById('forecast-diagnostics-table');
+        if (!table) return;
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+        const status = document.getElementById('forecast-api-status');
+
+        const stats = SalesForecastEngine.apiCallStats || {};
+        const rows = SalesForecastEngine.getDiagnosticsTable();
+        const usingApi = SalesForecastEngine.useApi;
+
+        if (status) {
+            const venuesViaApi = Object.keys(SalesForecastEngine.apiForecasts || {}).length;
+            const totalVenues = Object.keys(SalesForecastEngine.baseDailySales || {}).length || venuesViaApi;
+            const localFallback = Math.max(0, totalVenues - venuesViaApi);
+            status.textContent = usingApi
+                ? `API: ${venuesViaApi}/${totalVenues} venues | ${stats.batches || 0} batches | ${stats.retries || 0} retries | ${stats.failures || 0} failures | ${(stats.totalMs / 1000).toFixed(1)}s | local fallback: ${localFallback}`
+                : 'Local seasonality model only (no API forecast).';
+            status.className = 'forecast-api-status ' + (stats.failures > 0 ? 'warning' : 'ok');
+        }
+
+        thead.innerHTML = `
+            <tr>
+                <th>Venue</th>
+                <th>Model</th>
+                <th class="number">History days</th>
+                <th class="number">Avg daily ($)</th>
+                <th class="number">RMSE ($)</th>
+                <th class="number">RMSE / avg</th>
+                <th class="number">CV</th>
+                <th>Warnings</th>
+            </tr>`;
+        tbody.innerHTML = '';
+        if (!rows.length) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td colspan="8">No API diagnostics — re-run the budget with the forecast API enabled.</td>';
+            tbody.appendChild(tr);
+            return;
+        }
+        const fmt = (v) => v == null ? '—' : '$' + Math.round(v).toLocaleString();
+        const pct = (v) => v == null ? '—' : `${(v * 100).toFixed(1)}%`;
+        const num = (v) => v == null ? '—' : Number(v).toFixed(3);
+
+        for (const r of rows) {
+            const tr = document.createElement('tr');
+            if (r.low_confidence) tr.style.background = 'rgba(239,68,68,0.10)';
+            tr.innerHTML = `
+                <td>${r.venue_key}</td>
+                <td>${r.model || '—'}</td>
+                <td class="number">${r.history_days}</td>
+                <td class="number">${fmt(r.base_daily_sales)}</td>
+                <td class="number">${fmt(r.rmse)}</td>
+                <td class="number">${pct(r.rmse_pct_of_avg)}</td>
+                <td class="number">${num(r.cv)}</td>
+                <td>${(r.warnings || []).join('; ')}</td>`;
+            tbody.appendChild(tr);
+        }
     },
 
     showPreview(key, result) {

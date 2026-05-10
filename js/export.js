@@ -4,21 +4,30 @@ const ExportEngine = {
         const key = String(item.key || '').toLowerCase();
         const type = String(item.type || '').toLowerCase();
 
-        if (key === 'net_sales' || key === 'gross_profit' || key === 'venue_contribution') {
-            return amount;
-        }
-        if (key === 'other_pnl_total') {
-            return Math.round((-amount) * 100) / 100;
-        }
-        if (type.includes('revenue') || type.includes('income')) {
+        // Revenue and revenue-side subtotals: positive
+        if (
+            key === 'gross_sales' || key === 'net_sales' ||
+            key === 'gross_profit' || key === 'venue_contribution'
+        ) return amount;
+
+        // Discount: contra-revenue (shown negative on the P&L between gross and net)
+        if (key === 'cogs_discounts' || type === 'discount') return -Math.abs(amount);
+
+        // Other P&L total is now stored as a SIGNED contribution (income +ve, expense -ve).
+        // Display: just return as-is rather than always negating (the previous bug).
+        if (key === 'other_pnl_total') return amount;
+
+        // Revenue / income types
+        if (type === 'other_income' || type.includes('revenue') || type.includes('income')) {
             return Math.abs(amount);
         }
+        // Cost types: render negative
         if (
             type.includes('cogs') ||
             type.includes('labour') ||
             type.includes('occupancy') ||
             type.includes('expense') ||
-            type.includes('other') ||
+            type === 'other_pnl' ||
             type === 'subtotal'
         ) {
             return -Math.abs(amount);
@@ -329,7 +338,7 @@ const ExportEngine = {
             created: new Date().toISOString()
         });
 
-        onProgress(5, 'Created budget run...');
+        onProgress(3, 'Created budget run...');
 
         const venues = ExcelParser.uploads.venue_details?.venues || [];
         if (venues.length) {
@@ -347,26 +356,118 @@ const ExportEngine = {
         if (missingVenueIds.length) {
             throw new Error(`Could not resolve Supabase venue IDs for: ${missingVenueIds.slice(0, 10).join(', ')}`);
         }
-        onProgress(15, 'Uploaded venues...');
+        onProgress(8, 'Uploaded venues. Writing assumptions...');
+
+        const result = {
+            runId,
+            assumptions: {},
+            dailyAccountRows: 0,
+            monthlyAccountRows: 0,
+            warnings: []
+        };
+
+        // Write underlying assumption tables (best-effort: log a warning if a table is missing rather than abort).
+        const safeWrite = async (label, fn) => {
+            try { await fn(); }
+            catch (err) {
+                console.warn(`[push] ${label} skipped:`, err);
+                result.warnings.push(`${label}: ${err?.message || err}`);
+            }
+        };
+
+        // Ramp-up curves
+        const rampUp = ExcelParser.uploads.venue_details?.rampUp || {};
+        const rampRows = [];
+        for (const [venueKey, months] of Object.entries(rampUp)) {
+            const venueId = venueIdMap[venueKey];
+            if (!venueId) continue;
+            months.forEach((multiplier, i) => rampRows.push({
+                venue_id: venueId, month_number: i + 1, multiplier
+            }));
+        }
+        if (rampRows.length) await safeWrite('venue_ramp_up', () => SupabaseClient.upsertVenueRampUp(rampRows));
+        result.assumptions.venue_ramp_up = rampRows.length;
+
+        // Sales history
+        const salesRows = (ExcelParser.uploads.sales_history?.records || [])
+            .map(r => ({ venue_id: venueIdMap[r.venue_key], sale_date: r.sale_date, gross_sales: r.gross_sales }))
+            .filter(r => r.venue_id);
+        if (salesRows.length) {
+            await safeWrite('sales_history', () => SupabaseClient.writeSalesHistory(salesRows));
+        }
+        result.assumptions.sales_history = salesRows.length;
+
+        // Weather
+        const weatherRows = [];
+        for (const arr of Object.values(WeatherEngine.weatherData || {})) {
+            for (const w of arr) weatherRows.push({
+                state: w.state, observation_date: w.observation_date,
+                max_temp_c: w.max_temp_c, min_temp_c: w.min_temp_c,
+                rainfall_mm: w.rainfall_mm, sunshine_hours: w.sunshine_hours
+            });
+        }
+        if (weatherRows.length) await safeWrite('weather_data', () => SupabaseClient.writeWeatherData(weatherRows));
+        result.assumptions.weather_data = weatherRows.length;
+
+        // Prior P&L
+        const priorRows = (ExcelParser.uploads.prior_pnl?.records || [])
+            .map(r => ({
+                venue_id: venueIdMap[r.venue_key], period_month: r.period_month,
+                line_item: r.line_item, amount: r.amount
+            }))
+            .filter(r => r.venue_id);
+        if (priorRows.length) await safeWrite('prior_pnl', () => SupabaseClient.writePriorPnl(priorRows));
+        result.assumptions.prior_pnl = priorRows.length;
+
+        // Per-run assumptions
+        const tagWithVenue = (records) => (records || [])
+            .map(r => ({ ...r, venue_id: venueIdMap[r.venue_key] }))
+            .filter(r => r.venue_id)
+            .map(r => { const out = { ...r }; delete out.venue_key; delete out.venue_name; return out; });
+
+        const ticketRows = tagWithVenue(ExcelParser.uploads.avg_ticket?.records);
+        if (ticketRows.length) await safeWrite('avg_ticket_assumptions', () => SupabaseClient.writeAvgTicket(runId, ticketRows));
+        result.assumptions.avg_ticket = ticketRows.length;
+
+        const labourRows = tagWithVenue(ExcelParser.uploads.labour?.records).map(r => ({
+            venue_id: r.venue_id,
+            sales_per_labour_hr: r.sales_per_labour_hr,
+            avg_hourly_rate: r.avg_hourly_rate,
+            oncosts_pct: r.oncosts_pct,
+            mgmt_salary_monthly: r.mgmt_salary_monthly,
+            mgmt_oncosts_pct: r.mgmt_oncosts_pct
+        }));
+        if (labourRows.length) await safeWrite('labour_assumptions', () => SupabaseClient.writeLabour(runId, labourRows));
+        result.assumptions.labour = labourRows.length;
+
+        const cogsRows = tagWithVenue(ExcelParser.uploads.cogs?.records);
+        if (cogsRows.length) await safeWrite('cogs_assumptions', () => SupabaseClient.writeCogs(runId, cogsRows));
+        result.assumptions.cogs = cogsRows.length;
+
+        const rentRows = tagWithVenue(ExcelParser.uploads.rent?.records);
+        if (rentRows.length) await safeWrite('rent_assumptions', () => SupabaseClient.writeRent(runId, rentRows));
+        result.assumptions.rent = rentRows.length;
+
+        onProgress(20, 'Uploading daily account lines...');
 
         const dailyAccountRows = this.getDailyAccountDbRows(venueIdMap);
         if (dailyAccountRows.length) {
             await SupabaseClient.writeDailyAccountLines(runId, dailyAccountRows, (done, total) => {
-                const pct = 15 + (done / total) * 70;
+                const pct = 20 + (done / total) * 65;
                 onProgress(pct, `Uploading daily account lines... ${done}/${total}`);
             });
         }
+        result.dailyAccountRows = dailyAccountRows.length;
         onProgress(90, 'Uploading monthly account lines...');
 
         const monthlyAccountRows = this.getMonthlyAccountDbRows(venueIdMap);
         if (monthlyAccountRows.length) {
             await SupabaseClient.writeMonthlyAccountLines(runId, monthlyAccountRows);
         }
-        onProgress(100, 'Complete!');
-        return {
-            runId,
-            dailyAccountRows: dailyAccountRows.length,
-            monthlyAccountRows: monthlyAccountRows.length
-        };
+        result.monthlyAccountRows = monthlyAccountRows.length;
+        onProgress(100, result.warnings.length
+            ? `Complete with ${result.warnings.length} warning(s) — see console.`
+            : 'Complete!');
+        return result;
     }
 };

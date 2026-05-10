@@ -16,7 +16,12 @@ const SalesAnalysisEngine = {
 
     addYears(dateStr, years) {
         const d = new Date(`${dateStr}T00:00:00`);
+        const targetMonth = d.getMonth();
         d.setFullYear(d.getFullYear() + years);
+        // setFullYear rolls Feb 29 -> Mar 1. Detect overflow and clamp back to last day of target month.
+        if (d.getMonth() !== targetMonth) {
+            d.setDate(0); // last day of previous (== target) month
+        }
         return this.formatDate(d);
     },
 
@@ -233,8 +238,11 @@ const SalesAnalysisEngine = {
 
         for (const budgetMonth of months) {
             const comparatorMonth = this.addYears(budgetMonth, -1);
-            const monthEnd = this.addDays(this.addYears(this.addDays(budgetMonth, 32).substring(0, 7) + '-01', -1), -1);
-            const comparatorEnd = this.addDays(this.addYears(this.addDays(budgetMonth, 32).substring(0, 7) + '-01', -1), -1);
+            // End-of-month for the comparator = (comparatorMonth + 1 month) - 1 day. Use Date math, not string ops.
+            const comparatorEndDate = new Date(`${comparatorMonth}T00:00:00`);
+            comparatorEndDate.setMonth(comparatorEndDate.getMonth() + 1);
+            comparatorEndDate.setDate(0);
+            const comparatorEnd = this.formatDate(comparatorEndDate);
             const budgetMonthKey = this.formatMonth(budgetMonth);
             const comparatorMonthKey = this.formatMonth(comparatorMonth);
             const monthLabel = budgetMonthKey;

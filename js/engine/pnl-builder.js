@@ -13,9 +13,10 @@ const PnlBuilder = {
         } = data;
 
         SalesForecastEngine.buildSeasonality(salesHistory, venueDetails);
+        const discountByVenue = CogsCalcEngine.buildVenueDiscountMap(cogsAssumptions);
         const forecasts = SalesForecastEngine.generateForecasts(
             venueDetails, avgTicketData, rampUpData, forecastStart, forecastEnd,
-            monthlyGrowthData || {}, newVenueAssumptions || {}
+            monthlyGrowthData || {}, newVenueAssumptions || {}, discountByVenue
         );
 
         CogsCalcEngine.calculate(forecasts, cogsAssumptions);
@@ -30,9 +31,10 @@ const PnlBuilder = {
         );
         this.otherPnlLineItems = OtherPnlCalcEngine.lineItems || [];
 
+        // other_pnl_total is now a SIGNED contribution (income +ve, expense -ve), so add it.
         for (const f of forecasts) {
             f.venue_contribution = Math.round(
-                (f.gross_profit - f.labour_total - f.occupancy_total - (f.other_pnl_total || 0)) * 100
+                (f.gross_profit - f.labour_total - f.occupancy_total + (f.other_pnl_total || 0)) * 100
             ) / 100;
         }
 
@@ -55,6 +57,7 @@ const PnlBuilder = {
                     venue_name: f.venue_name,
                     state: f.state,
                     budget_month: monthKey,
+                    gross_sales: 0,
                     net_sales: 0,
                     cogs_food: 0,
                     cogs_packaging: 0,
@@ -80,6 +83,7 @@ const PnlBuilder = {
             }
 
             const m = grouped[key];
+            m.gross_sales += Number(f.gross_sales || 0);
             m.net_sales += f.net_sales;
             m.cogs_food += f.cogs_food;
             m.cogs_packaging += f.cogs_packaging;
@@ -118,16 +122,6 @@ const PnlBuilder = {
         return result.sort((a, b) =>
             a.venue_key.localeCompare(b.venue_key) || a.budget_month.localeCompare(b.budget_month)
         );
-    },
-
-    setPriorPnl(priorPnlRecords) {
-        this.priorPnlByVenue = {};
-        for (const r of priorPnlRecords) {
-            if (!this.priorPnlByVenue[r.venue_key]) this.priorPnlByVenue[r.venue_key] = {};
-            const monthKey = r.period_month;
-            if (!this.priorPnlByVenue[r.venue_key][monthKey]) this.priorPnlByVenue[r.venue_key][monthKey] = {};
-            this.priorPnlByVenue[r.venue_key][monthKey][r.line_item] = r.amount;
-        }
     },
 
     getPnlTable(venueKey, view) {
@@ -253,6 +247,8 @@ const PnlBuilder = {
             ? Object.keys(this.priorPnlByVenue)
             : [venueKey];
 
+        this.lastPriorMappingMisses = new Set(this.lastPriorMappingMisses || []);
+
         for (const vk of venues) {
             const venueData = this.priorPnlByVenue[vk];
             if (!venueData) continue;
@@ -262,11 +258,31 @@ const PnlBuilder = {
                     const mappedKey = this.mapPriorLineItem(item);
                     if (mappedKey) {
                         totals[mappedKey] = (totals[mappedKey] || 0) + (amount * factor);
+                    } else {
+                        this.lastPriorMappingMisses.add(item);
                     }
                 }
             }
         }
         return totals;
+    },
+
+    getPriorCoverageReport() {
+        const out = [];
+        for (const [venueKey, months] of Object.entries(this.priorPnlByVenue || {})) {
+            const monthCount = new Set(Object.keys(months || {})).size;
+            out.push({
+                venue_key: venueKey,
+                months_covered: monthCount,
+                annualisation_factor: 12 / Math.max(1, monthCount),
+                low_coverage: monthCount < 12
+            });
+        }
+        return out.sort((a, b) => a.months_covered - b.months_covered);
+    },
+
+    getPriorMappingMisses() {
+        return [...(this.lastPriorMappingMisses || new Set())];
     },
 
     getPriorAnnualisationFactor(venueKey, monthKeys) {
@@ -321,35 +337,87 @@ const PnlBuilder = {
         return new Date(year, month, 0).getDate();
     },
 
-    mapPriorLineItem(lineItem) {
-        const lower = lineItem.toLowerCase().trim();
-        const map = {
-            'net sales': 'net_sales',
-            'cogs - food': 'cogs_food',
-            'cogs - packaging': 'cogs_packaging',
-            'cogs - retail': 'cogs_retail',
-            'cogs - discounts': 'cogs_discounts',
-            'total cogs': 'cogs_total',
-            'gross profit': 'gross_profit',
-            'labour - crew': 'crew_labour_cost',
-            'labour - crew oncosts': 'crew_oncosts',
-            'labour - management': 'mgmt_labour_cost',
-            'labour - mgmt oncosts': 'mgmt_oncosts',
-            'total labour': 'labour_total',
-            'occupancy - base rent': 'rent_base',
-            'occupancy - outgoings': 'rent_outgoings',
-            'occupancy - % rent': 'rent_percentage',
-            'occupancy - marketing levy': 'rent_marketing_levy',
-            'total occupancy': 'occupancy_total',
-            'venue contribution': 'venue_contribution'
-        };
-        if (map[lower]) return map[lower];
+    _normaliseLineItemKey(s) {
+        // Fuzzy matcher: lowercase, strip punctuation, collapse whitespace.
+        // Handles "COGS - Food" vs "COGS Food" vs "Cost of Sales – Food".
+        return String(s || '')
+            .toLowerCase()
+            .replace(/&/g, ' and ')
+            .replace(/[–—]/g, '-')   // en/em dash
+            .replace(/[^a-z0-9%]+/g, ' ')      // keep % so "% rent" still matches
+            .replace(/\s+/g, ' ')
+            .replace(/\bcost of sales?\b/g, 'cogs')
+            .replace(/\bmanagement\b/g, 'mgmt')
+            .trim();
+    },
 
-        const dynamic = this.getPnlLineItems().find(item =>
-            item.label?.toLowerCase().trim() === lower ||
-            item.key?.toLowerCase().trim() === lower
-        );
-        return dynamic?.key || null;
+    mapPriorLineItem(lineItem) {
+        const norm = this._normaliseLineItemKey(lineItem);
+        if (!norm) return null;
+
+        if (!this._priorLineItemIndex) this._buildPriorLineItemIndex();
+        if (this._priorLineItemIndex.exact.has(norm)) {
+            return this._priorLineItemIndex.exact.get(norm);
+        }
+        // contains-match (e.g. prior "labour crew wages" matches budget "labour crew")
+        for (const [key, target] of this._priorLineItemIndex.contains) {
+            if (norm.includes(key) || key.includes(norm)) return target;
+        }
+        return null;
+    },
+
+    _buildPriorLineItemIndex() {
+        const exact = new Map();
+        const contains = [];
+        const addPair = (alias, target) => {
+            const n = this._normaliseLineItemKey(alias);
+            if (n && !exact.has(n)) exact.set(n, target);
+        };
+
+        const aliases = {
+            net_sales: ['Net Sales', 'Total Revenue', 'Sales', 'Trade Revenue', 'Revenue'],
+            gross_sales: ['Gross Sales', 'Gross Revenue'],
+            cogs_food: ['COGS - Food', 'COGS Food', 'Food COGS', 'Cost of Sales - Food', 'Servings Cost', 'Food Cost'],
+            cogs_packaging: ['COGS - Packaging', 'Packaging COGS', 'Packaging Cost', 'Packaging'],
+            cogs_retail: ['COGS - Retail', 'Retail COGS', 'Retail Cost', 'Retail Costs'],
+            cogs_discounts: ['Discounts', 'COGS - Discounts', 'Sale Discounts', 'Sales Discounts', 'Promotional Discounts'],
+            cogs_total: ['Total COGS', 'Total Cost of Sales', 'COGS', 'Cost of Sales'],
+            gross_profit: ['Gross Profit', 'GP'],
+            crew_labour_cost: ['Labour - Crew', 'Crew Labour', 'Crew Wages', 'Wages Crew', 'Wages and Salaries Crew'],
+            crew_oncosts: ['Labour - Crew Oncosts', 'Crew Oncosts', 'Crew On Costs'],
+            mgmt_labour_cost: ['Labour - Management', 'Management Labour', 'Mgmt Salary', 'Mgmt Wages', 'Manager Salary'],
+            mgmt_oncosts: ['Labour - Mgmt Oncosts', 'Mgmt Oncosts', 'Management Oncosts', 'Mgmt On Costs'],
+            labour_total: ['Total Labour', 'Total Wages and Salaries', 'Total Wages'],
+            rent_base: ['Occupancy - Base Rent', 'Base Rent', 'Rent', 'Rent Base'],
+            rent_outgoings: ['Occupancy - Outgoings', 'Outgoings', 'Property Outgoings'],
+            rent_percentage: ['Occupancy - % Rent', '% Rent', 'Percentage Rent', 'Pct Rent', 'Turnover Rent'],
+            rent_marketing_levy: ['Occupancy - Marketing Levy', 'Marketing Levy', 'Centre Marketing'],
+            occupancy_total: ['Total Occupancy', 'Total Property Expenses', 'Property Expenses Total'],
+            venue_contribution: ['Venue Contribution', 'Store Contribution', 'Four Wall Contribution', 'Contribution']
+        };
+        for (const [key, list] of Object.entries(aliases)) {
+            for (const alias of list) addPair(alias, key);
+            contains.push([key.replace(/_/g, ' '), key]);
+        }
+
+        // Add dynamic Other P&L items as exact matches by their label / key
+        for (const item of this.otherPnlLineItems || []) {
+            addPair(item.label, item.key);
+            addPair(item.key, item.key);
+            if (item.account_code) addPair(item.account_code, item.key);
+        }
+        this._priorLineItemIndex = { exact, contains };
+    },
+
+    setPriorPnl(priorPnlRecords) {
+        this.priorPnlByVenue = {};
+        this._priorLineItemIndex = null; // rebuild on next variance calc
+        for (const r of priorPnlRecords) {
+            if (!this.priorPnlByVenue[r.venue_key]) this.priorPnlByVenue[r.venue_key] = {};
+            const monthKey = r.period_month;
+            if (!this.priorPnlByVenue[r.venue_key][monthKey]) this.priorPnlByVenue[r.venue_key][monthKey] = {};
+            this.priorPnlByVenue[r.venue_key][monthKey][r.line_item] = r.amount;
+        }
     },
 
     getNetworkKPIs() {

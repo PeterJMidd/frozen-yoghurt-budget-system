@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frozen Yoghurt QSR Budget Model</title>
-    <link rel="stylesheet" href="css/styles.css?v=20260510-sales-detail">
+    <link rel="stylesheet" href="css/styles.css?v=20260510-fixes">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -229,6 +229,16 @@
                     <canvas id="chart-forecast-monthly"></canvas>
                 </div>
             </div>
+            <div class="section-header" style="margin-top:1.5rem">
+                <h2>Forecast Diagnostics</h2>
+                <span id="forecast-api-status" class="forecast-api-status"></span>
+            </div>
+            <div class="table-container">
+                <table id="forecast-diagnostics-table">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </section>
 
         <!-- SALES DETAIL TAB -->
@@ -440,20 +450,20 @@
         <span id="calc-status"></span>
     </footer>
 
-    <script src="js/config.js?v=20260509-category-signs"></script>
-    <script src="js/calendars.js?v=20260509-category-signs"></script>
-    <script src="js/supabase-client.js?v=20260509-category-signs"></script>
-    <script src="js/excel-parser.js?v=20260509-category-signs"></script>
-    <script src="js/weather.js?v=20260509-category-signs"></script>
-    <script src="js/engine/sales-forecast.js?v=20260509-category-signs"></script>
-    <script src="js/engine/labour-calc.js?v=20260509-category-signs"></script>
-    <script src="js/engine/cogs-calc.js?v=20260509-category-signs"></script>
-    <script src="js/engine/rent-calc.js?v=20260509-category-signs"></script>
-    <script src="js/engine/other-pnl-calc.js?v=20260509-category-signs"></script>
-    <script src="js/engine/pnl-builder.js?v=20260509-category-signs"></script>
-    <script src="js/sales-analysis.js?v=20260510-sales-detail"></script>
-    <script src="js/charts.js?v=20260510-sales-detail"></script>
-    <script src="js/export.js?v=20260509-category-signs"></script>
-    <script src="js/app.js?v=20260510-sales-detail"></script>
+    <script src="js/config.js?v=20260510-fixes"></script>
+    <script src="js/calendars.js?v=20260510-fixes"></script>
+    <script src="js/supabase-client.js?v=20260510-fixes"></script>
+    <script src="js/excel-parser.js?v=20260510-fixes"></script>
+    <script src="js/weather.js?v=20260510-fixes"></script>
+    <script src="js/engine/sales-forecast.js?v=20260510-fixes"></script>
+    <script src="js/engine/labour-calc.js?v=20260510-fixes"></script>
+    <script src="js/engine/cogs-calc.js?v=20260510-fixes"></script>
+    <script src="js/engine/rent-calc.js?v=20260510-fixes"></script>
+    <script src="js/engine/other-pnl-calc.js?v=20260510-fixes"></script>
+    <script src="js/engine/pnl-builder.js?v=20260510-fixes"></script>
+    <script src="js/sales-analysis.js?v=20260510-fixes"></script>
+    <script src="js/charts.js?v=20260510-fixes"></script>
+    <script src="js/export.js?v=20260510-fixes"></script>
+    <script src="js/app.js?v=20260510-fixes"></script>
 </body>
 </html>

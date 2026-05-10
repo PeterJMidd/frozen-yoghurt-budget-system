@@ -22,6 +22,27 @@ const ExcelParser = {
         return String(name).trim().toLowerCase().replace(/\s+/g, ' ');
     },
 
+    // Parse a percent input that may arrive as a fraction (0.05) or whole-number percent (5).
+    // Heuristic: if abs(value) > 1, treat as percent and divide by 100. Otherwise treat as fraction.
+    // Pass `treatAs='percent'` to force divide-by-100, or `'fraction'` to leave as-is.
+    parsePct(value, treatAs) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return 0;
+        if (treatAs === 'fraction') return n;
+        if (treatAs === 'percent') return n / 100;
+        return Math.abs(n) > 1 ? n / 100 : n;
+    },
+
+    // Skip rows whose first cell is a totals/summary marker.
+    isTotalsRow(label) {
+        const s = String(label || '').trim().toLowerCase();
+        if (!s) return true;
+        return [
+            'total', 'totals', 'sum', 'subtotal', 'sub-total', 'sub total',
+            'grand total', 'period total', 'ytd', 'year to date'
+        ].includes(s);
+    },
+
     isExcludedVenueName(name) {
         const key = this.normaliseVenueName(name);
         if (!key) return false;
@@ -147,6 +168,7 @@ const ExcelParser = {
                 const row = data[r];
                 const lineItem = String(row[0] || '').trim();
                 if (!lineItem) continue;
+                if (this.isTotalsRow(lineItem)) continue;
 
                 for (const mc of monthColumns) {
                     const val = row[mc.col];
@@ -348,9 +370,9 @@ const ExcelParser = {
                 venue_key: this.normaliseVenueName(name),
                 sales_per_labour_hr: Number(row.sales_per_labour_hr || row['Sales Per Labour Hour'] || row['SPLH'] || 0),
                 avg_hourly_rate: Number(row.avg_hourly_rate || row['Avg Hourly Rate'] || row['Hourly Rate'] || 0),
-                oncosts_pct: Number(row.oncosts_pct || row['Oncosts %'] || row['On Costs %'] || 0) / 100,
+                oncosts_pct: this.parsePct(row.oncosts_pct ?? row['Oncosts %'] ?? row['On Costs %'] ?? 0),
                 mgmt_salary_monthly: Number(row.mgmt_salary_monthly || row['Mgmt Salary Monthly'] || row['Management Salary'] || 0),
-                mgmt_oncosts_pct: Number(row.mgmt_oncosts_pct || row['Mgmt Oncosts %'] || row['Mgmt On Costs %'] || 0) / 100,
+                mgmt_oncosts_pct: this.parsePct(row.mgmt_oncosts_pct ?? row['Mgmt Oncosts %'] ?? row['Mgmt On Costs %'] ?? 0),
                 award_enabled: String(row.award_enabled || row['Award Enabled'] || 'Y').trim().toUpperCase() !== 'N',
                 award_employment_type: String(row.award_employment_type || row['Award Employment Type'] || CONFIG.FAST_FOOD_AWARD.default_employment_type).trim().toLowerCase(),
                 award_level: Number(row.award_level || row['Award Level'] || CONFIG.FAST_FOOD_AWARD.default_level),
@@ -360,7 +382,9 @@ const ExcelParser = {
                 award_sunday_rate: Number(row.award_sunday_rate || row['Award Sunday Rate'] || 0),
                 award_public_holiday_rate: Number(row.award_public_holiday_rate || row['Award Public Holiday Rate'] || 0),
                 award_increase_date: this.formatDate(row.award_increase_date || row['Award Increase Date'] || CONFIG.FAST_FOOD_AWARD.scheduled_increase_date),
-                award_increase_pct: Number(row.award_increase_pct || row['Award Increase %'] || (CONFIG.FAST_FOOD_AWARD.scheduled_increase_pct * 100) || 0) / 100
+                award_increase_pct: this.parsePct(
+                    row.award_increase_pct ?? row['Award Increase %'] ?? CONFIG.FAST_FOOD_AWARD.scheduled_increase_pct
+                )
             });
         }
 
@@ -393,12 +417,11 @@ const ExcelParser = {
                         if (row[alt] != null) { val = row[alt]; break; }
                     }
                 }
-                val = Number(val || 0);
                 records.push({
                     venue_name: name,
                     venue_key: key,
                     category: cat.category,
-                    cogs_pct: val / 100
+                    cogs_pct: this.parsePct(val)
                 });
             }
         }
@@ -423,8 +446,8 @@ const ExcelParser = {
                 base_rent_monthly: Number(row.base_rent_monthly || row['Base Rent Monthly'] || row['Base Rent'] || 0),
                 outgoings_monthly: Number(row.outgoings_monthly || row['Outgoings Monthly'] || row['Outgoings'] || 0),
                 pct_rent_threshold: Number(row.pct_rent_threshold || row['% Rent Threshold'] || row['Pct Rent Threshold'] || 0),
-                pct_rent_rate: Number(row.pct_rent_rate || row['% Rent Rate'] || row['Pct Rent Rate'] || 0) / 100,
-                marketing_levy_pct: Number(row.marketing_levy_pct || row['Marketing Levy %'] || row['Marketing Levy'] || 0) / 100
+                pct_rent_rate: this.parsePct(row.pct_rent_rate ?? row['% Rent Rate'] ?? row['Pct Rent Rate'] ?? 0),
+                marketing_levy_pct: this.parsePct(row.marketing_levy_pct ?? row['Marketing Levy %'] ?? row['Marketing Levy'] ?? 0)
             });
         }
 
@@ -463,7 +486,7 @@ const ExcelParser = {
                 budget_method: budgetMethod,
                 base_monthly_amount: Number(row.base_monthly_amount || row['Base Monthly Amount'] || 0),
                 base_daily_amount: Number(row.base_daily_amount || row['Base Daily Amount'] || 0),
-                pct_of_sales: Number(row.pct_of_sales || row['Pct of Sales'] || 0),
+                pct_of_sales: this.parsePct(row.pct_of_sales ?? row['Pct of Sales'] ?? 0),
                 effective_date: this.formatDate(row.effective_date || row['Effective Date'] || null),
                 adjustment_type: String(row.adjustment_type || row['Adjustment Type'] || '').trim().toLowerCase(),
                 adjustment_value: Number(row.adjustment_value || row['Adjustment Value'] || 0),
@@ -471,7 +494,7 @@ const ExcelParser = {
                 notes: String(row.notes || row['Notes'] || '').trim()
             };
 
-            if (record.pct_of_sales > 1) record.pct_of_sales = record.pct_of_sales / 100;
+            // pct_of_sales already normalised by parsePct above
             if (record.allocation_scope === 'venue' && !record.venue_name) {
                 errors.push(`${accountCode} ${accountName}: venue scope needs a venue_name`);
                 continue;
@@ -480,6 +503,68 @@ const ExcelParser = {
         }
 
         return { records, errors };
+    },
+
+    // Returns reasonableness warnings for a single uploaded template, by inspecting parsed records.
+    // Warnings are non-blocking: they surface to the upload status to flag likely unit/data errors.
+    sanityWarnings(templateKey, parsed) {
+        const bands = (CONFIG.SANITY_BANDS || {});
+        const warnings = [];
+        const venueLabel = (r) => r.venue_name || r.venue_key || '?';
+        const checkBand = (label, value, band) => {
+            if (value == null || !Number.isFinite(value) || !band) return;
+            if (value < band.min || value > band.max) {
+                warnings.push(`${label}: ${value} outside expected ${band.label} band (${band.min}–${band.max})`);
+            }
+        };
+
+        const records = parsed?.records || [];
+        if (templateKey === 'cogs') {
+            for (const r of records) {
+                if (r.category === 'food') checkBand(`COGS Food [${venueLabel(r)}]`, r.cogs_pct, bands.cogs_food);
+                if (r.category === 'packaging') checkBand(`COGS Packaging [${venueLabel(r)}]`, r.cogs_pct, bands.cogs_packaging);
+                if (r.category === 'retail') checkBand(`COGS Retail [${venueLabel(r)}]`, r.cogs_pct, bands.cogs_retail);
+                if (r.category === 'sale_discounts') checkBand(`Discount [${venueLabel(r)}]`, r.cogs_pct, bands.cogs_discounts);
+            }
+        } else if (templateKey === 'labour') {
+            for (const r of records) {
+                checkBand(`SPLH [${venueLabel(r)}]`, r.sales_per_labour_hr, bands.splh);
+                checkBand(`Hourly Rate [${venueLabel(r)}]`, r.avg_hourly_rate, bands.hourly_rate);
+                checkBand(`Crew Oncosts [${venueLabel(r)}]`, r.oncosts_pct, bands.labour_oncosts);
+                checkBand(`Mgmt Oncosts [${venueLabel(r)}]`, r.mgmt_oncosts_pct, bands.mgmt_oncosts);
+                checkBand(`Mgmt Salary [${venueLabel(r)}]`, r.mgmt_salary_monthly, bands.mgmt_salary);
+                checkBand(`Award Increase [${venueLabel(r)}]`, r.award_increase_pct, bands.award_increase);
+            }
+        } else if (templateKey === 'rent') {
+            for (const r of records) {
+                checkBand(`% Rent Rate [${venueLabel(r)}]`, r.pct_rent_rate, bands.pct_rent_rate);
+                checkBand(`Marketing Levy [${venueLabel(r)}]`, r.marketing_levy_pct, bands.marketing_levy);
+            }
+        } else if (templateKey === 'prior_pnl') {
+            const monthsByVenue = {};
+            for (const r of records) {
+                if (!monthsByVenue[r.venue_key]) monthsByVenue[r.venue_key] = new Set();
+                monthsByVenue[r.venue_key].add(r.period_month);
+            }
+            for (const [venueKey, months] of Object.entries(monthsByVenue)) {
+                if (months.size < 12) {
+                    warnings.push(`Prior P&L coverage for "${venueKey}": only ${months.size} months — variance will be annualised`);
+                }
+            }
+        } else if (templateKey === 'sales_history') {
+            // Flag venues with very thin history (< 30 distinct days)
+            const daysByVenue = {};
+            for (const r of records) {
+                if (!daysByVenue[r.venue_key]) daysByVenue[r.venue_key] = new Set();
+                daysByVenue[r.venue_key].add(r.sale_date);
+            }
+            for (const [vk, days] of Object.entries(daysByVenue)) {
+                if (days.size < 30) {
+                    warnings.push(`Sales history for "${vk}": only ${days.size} day(s) — forecast will fall back to network average / similar venue`);
+                }
+            }
+        }
+        return warnings;
     },
 
     validateCrossTemplate() {

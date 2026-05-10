@@ -73,33 +73,75 @@ const Charts = {
             : SalesForecastEngine.dailyForecasts.filter(f => f.venue_key === venueKey);
 
         const dailyTotals = {};
+        const dailyLower = {};
+        const dailyUpper = {};
+        let bandRowCount = 0;
         for (const f of forecasts) {
-            if (!dailyTotals[f.forecast_date]) dailyTotals[f.forecast_date] = 0;
+            if (!dailyTotals[f.forecast_date]) {
+                dailyTotals[f.forecast_date] = 0;
+                dailyLower[f.forecast_date] = 0;
+                dailyUpper[f.forecast_date] = 0;
+            }
             dailyTotals[f.forecast_date] += f.net_sales;
+            if (f.forecast_lower_90 != null && f.forecast_upper_90 != null) {
+                dailyLower[f.forecast_date] += f.forecast_lower_90;
+                dailyUpper[f.forecast_date] += f.forecast_upper_90;
+                bandRowCount++;
+            } else {
+                // No band for this venue/date — fall back to point so chart stays continuous.
+                dailyLower[f.forecast_date] += f.net_sales;
+                dailyUpper[f.forecast_date] += f.net_sales;
+            }
         }
+        const hasBands = bandRowCount > 0;
 
         const sorted = Object.entries(dailyTotals).sort(([a], [b]) => a.localeCompare(b));
         const step = Math.max(1, Math.floor(sorted.length / 60));
         const sampled = sorted.filter((_, i) => i % step === 0);
 
+        const datasets = [{
+            label: 'Daily Net Sales',
+            data: sampled.map(([, v]) => v),
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99,102,241,0.05)',
+            fill: false,
+            pointRadius: 0,
+            borderWidth: 1.5,
+            order: 1
+        }];
+
+        if (hasBands) {
+            datasets.unshift(
+                {
+                    label: 'Upper 90%',
+                    data: sampled.map(([d]) => dailyUpper[d]),
+                    borderColor: 'rgba(99,102,241,0)',
+                    backgroundColor: 'rgba(99,102,241,0.12)',
+                    fill: '+1',
+                    pointRadius: 0,
+                    borderWidth: 0,
+                    order: 2
+                },
+                {
+                    label: 'Lower 90%',
+                    data: sampled.map(([d]) => dailyLower[d]),
+                    borderColor: 'rgba(99,102,241,0)',
+                    backgroundColor: 'rgba(99,102,241,0)',
+                    fill: false,
+                    pointRadius: 0,
+                    borderWidth: 0,
+                    order: 3
+                }
+            );
+        }
+
         const ctx = document.getElementById('chart-daily-forecast').getContext('2d');
         this.instances['chart-daily-forecast'] = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: sampled.map(([d]) => d),
-                datasets: [{
-                    label: 'Daily Net Sales',
-                    data: sampled.map(([, v]) => v),
-                    borderColor: '#6366f1',
-                    backgroundColor: 'rgba(99,102,241,0.05)',
-                    fill: true,
-                    pointRadius: 0,
-                    borderWidth: 1.5
-                }]
-            },
+            data: { labels: sampled.map(([d]) => d), datasets },
             options: {
                 responsive: true,
-                plugins: { legend: { display: false } },
+                plugins: { legend: { display: hasBands, position: 'top' } },
                 scales: {
                     x: { ticks: { maxTicksLimit: 12, maxRotation: 45 } },
                     y: { title: { display: true, text: 'AUD' }, ticks: { callback: v => this.formatCurrency(v) } }

@@ -3,9 +3,11 @@ const SalesForecastEngine = {
     baseDailySales: {},
     dailyForecasts: [],
     apiForecasts: {},
-    apiModels: {},
+    apiBands: {},        // { venueKey: { date: { lower, upper } } }
+    apiDiagnostics: {},  // { venueKey: { model, rmse, cv, warnings, historyDays } }
     salesHistoryLookup: {},
     useApi: false,
+    apiCallStats: { batches: 0, retries: 0, failures: 0, lastError: null, totalMs: 0 },
 
     buildSeasonality(salesHistory, venueDetails) {
         const venueMap = {};
@@ -158,7 +160,9 @@ const SalesForecastEngine = {
         }
 
         this.apiForecasts = {};
-        this.apiModels = {};
+        this.apiBands = {};
+        this.apiDiagnostics = {};
+        this.apiCallStats = { batches: 0, retries: 0, failures: 0, lastError: null, totalMs: 0 };
         let done = 0;
 
         for (const batch of batches) {
@@ -195,30 +199,32 @@ const SalesForecastEngine = {
             }
             if (!venues.length) continue;
 
-            try {
-                const resp = await fetch(`${apiUrl}/forecast-multi`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ venues })
-                });
-
-                if (!resp.ok) throw new Error(`API returned ${resp.status}`);
-                const result = await resp.json();
-
+            const result = await this.callForecastApiWithRetry(apiUrl, venues);
+            if (result) {
                 const forecastsByVenue = result.venues || result;
                 for (const [venueKey, forecast] of Object.entries(forecastsByVenue)) {
                     const forecastValues = forecast.forecast_values || forecast.forecast;
                     if (forecast.forecast_dates && forecastValues) {
                         this.apiForecasts[venueKey] = {};
-                        this.apiModels[venueKey] = forecast.model || null;
+                        this.apiBands[venueKey] = {};
                         for (let i = 0; i < forecast.forecast_dates.length; i++) {
-                            this.apiForecasts[venueKey][forecast.forecast_dates[i]] =
-                                forecastValues[i];
+                            const date = forecast.forecast_dates[i];
+                            this.apiForecasts[venueKey][date] = forecastValues[i];
+                            const lo = forecast.lower_90?.[i];
+                            const hi = forecast.upper_90?.[i];
+                            if (lo != null && hi != null) {
+                                this.apiBands[venueKey][date] = { lower: lo, upper: hi };
+                            }
                         }
+                        this.apiDiagnostics[venueKey] = {
+                            model: forecast.model || null,
+                            rmse: forecast.rmse != null ? Number(forecast.rmse) : null,
+                            cv: forecast.cv != null ? Number(forecast.cv) : null,
+                            warnings: Array.isArray(forecast.warnings) ? forecast.warnings : [],
+                            historyDays: (grouped[venueKey] || []).filter(s => Number(s.gross_sales || 0) > 0).length
+                        };
                     }
                 }
-            } catch (err) {
-                console.warn(`API batch forecast failed:`, err);
             }
 
             done += batch.length;
@@ -226,6 +232,46 @@ const SalesForecastEngine = {
         }
 
         this.useApi = Object.keys(this.apiForecasts).length > 0;
+    },
+
+    async callForecastApiWithRetry(apiUrl, venues) {
+        const maxRetries = Number(CONFIG.FORECAST_API_RETRIES ?? 1);
+        const timeoutMs = Number(CONFIG.FORECAST_API_TIMEOUT_MS ?? 90000);
+        let attempt = 0;
+        let lastErr = null;
+
+        while (attempt <= maxRetries) {
+            const start = Date.now();
+            this.apiCallStats.batches++;
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), timeoutMs);
+                const resp = await fetch(`${apiUrl}/forecast-multi`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ venues }),
+                    signal: controller.signal
+                });
+                clearTimeout(timer);
+                if (!resp.ok) throw new Error(`API returned ${resp.status}`);
+                const json = await resp.json();
+                this.apiCallStats.totalMs += Date.now() - start;
+                return json;
+            } catch (err) {
+                this.apiCallStats.totalMs += Date.now() - start;
+                lastErr = err;
+                if (attempt < maxRetries) {
+                    this.apiCallStats.retries++;
+                    console.warn(`API batch failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying:`, err);
+                } else {
+                    this.apiCallStats.failures++;
+                    this.apiCallStats.lastError = err?.message || String(err);
+                    console.warn('API batch forecast failed (giving up after retries):', err);
+                }
+                attempt++;
+            }
+        }
+        return null;
     },
 
     addDays(dateStr, days) {
@@ -259,7 +305,7 @@ const SalesForecastEngine = {
         return Math.min(1.0, 0.4 + (monthsOpen * 0.6 / CONFIG.RAMP_UP_MONTHS));
     },
 
-    generateForecasts(venueDetails, avgTicketData, rampUpData, forecastStart, forecastEnd, monthlyGrowthData = {}, newVenueAssumptions = {}) {
+    generateForecasts(venueDetails, avgTicketData, rampUpData, forecastStart, forecastEnd, monthlyGrowthData = {}, newVenueAssumptions = {}, cogsDiscountByVenue = {}) {
         this.dailyForecasts = [];
 
         const venueMap = {};
@@ -347,9 +393,21 @@ const SalesForecastEngine = {
                 forecastSales *= growthMultiplier;
                 forecastSales = Math.max(0, Math.round(forecastSales * 100) / 100);
 
+                // Treat the API/local forecast value as NET sales (POS revenue, post-discount).
+                // Gross-up to compute gross_sales when a discount % is configured for the venue.
+                const discountPct = Number(cogsDiscountByVenue[venue.venue_key]
+                    ?? (similarVenueKey ? cogsDiscountByVenue[similarVenueKey] : 0)
+                    ?? 0);
+                const netSales = forecastSales;
+                const grossSales = discountPct > 0 && discountPct < 1
+                    ? Math.round((netSales / (1 - discountPct)) * 100) / 100
+                    : netSales;
+
                 const ticketKey = `${venue.venue_key}_${monthKey}`;
                 const avgTicket = ticketMap[ticketKey] || this.getDefaultTicket(venue.venue_key, avgTicketData);
-                const transactions = avgTicket > 0 ? Math.round(forecastSales / avgTicket) : 0;
+                const transactions = avgTicket > 0 ? Math.round(netSales / avgTicket) : 0;
+
+                const apiBand = this.apiBands[venue.venue_key]?.[dateStr] || null;
 
                 this.dailyForecasts.push({
                     venue_key: venue.venue_key,
@@ -359,8 +417,10 @@ const SalesForecastEngine = {
                     public_holiday_name: publicHolidayName,
                     prior_year_comparable_date: priorComparableDate,
                     prior_comparable_sales: this.getPriorComparableSales(venue, priorComparableDate, similarVenueKey),
-                    gross_sales: forecastSales,
-                    net_sales: forecastSales,
+                    gross_sales: grossSales,
+                    net_sales: netSales,
+                    forecast_lower_90: apiBand ? Math.max(0, Math.round(apiBand.lower * 100) / 100) : null,
+                    forecast_upper_90: apiBand ? Math.max(0, Math.round(apiBand.upper * 100) / 100) : null,
                     forecast_transactions: transactions,
                     avg_ticket: avgTicket,
                     ramp_up_multiplier: rampUp,
@@ -439,6 +499,26 @@ const SalesForecastEngine = {
             }
         }
         return this.seasonalityIndices[venueKey] || { dow: Array(7).fill(1), month: Array(12).fill(1) };
+    },
+
+    getDiagnosticsTable() {
+        return Object.entries(this.apiDiagnostics || {}).map(([venueKey, d]) => {
+            const baseDaily = this.baseDailySales[venueKey] || 0;
+            const rmsePct = d.rmse != null && baseDaily > 0 ? d.rmse / baseDaily : null;
+            return {
+                venue_key: venueKey,
+                model: d.model,
+                history_days: d.historyDays || 0,
+                rmse: d.rmse,
+                cv: d.cv,
+                rmse_pct_of_avg: rmsePct,
+                warnings: d.warnings || [],
+                base_daily_sales: baseDaily,
+                low_confidence: (rmsePct != null && rmsePct > 0.25)
+                    || (d.cv != null && d.cv > 0.30)
+                    || (d.warnings || []).length > 0
+            };
+        }).sort((a, b) => a.venue_key.localeCompare(b.venue_key));
     },
 
     getMonthlySalesForecasts(venueKey) {
