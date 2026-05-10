@@ -33,6 +33,38 @@ const ExcelParser = {
         return Math.abs(n) > 1 ? n / 100 : n;
     },
 
+    // Clamp a value to the band [min, max]. Returns { value, original, clamped, reason }.
+    // If the value is outside the band, snaps to nearest edge and flags clamped=true.
+    clampToBand(value, band) {
+        if (!band || value == null || !Number.isFinite(value)) return { value, clamped: false };
+        if (value < band.min) return { value: band.min, original: value, clamped: true, reason: 'below band' };
+        if (value > band.max) return { value: band.max, original: value, clamped: true, reason: 'above band' };
+        return { value, clamped: false };
+    },
+
+    // Apply clamping in place over a list of records. mapper(r) -> { field, band }.
+    // Mutates record[field] and returns a list of clamp logs.
+    applyClampsInPlace(records, mapper) {
+        const clamps = [];
+        for (const r of records) {
+            const spec = mapper(r);
+            if (!spec || !spec.band) continue;
+            const result = this.clampToBand(r[spec.field], spec.band);
+            if (result.clamped) {
+                clamps.push({
+                    venue: r.venue_name || r.venue_key,
+                    field: spec.label || spec.field,
+                    original: result.original,
+                    corrected: result.value,
+                    reason: result.reason,
+                    band: spec.band
+                });
+                r[spec.field] = result.value;
+            }
+        }
+        return clamps;
+    },
+
     // Skip rows whose first cell is a totals/summary marker.
     isTotalsRow(label) {
         const s = String(label || '').trim().toLowerCase();
@@ -388,7 +420,14 @@ const ExcelParser = {
             });
         }
 
-        return { records, errors };
+        const bands = CONFIG.SANITY_BANDS || {};
+        const clamps = [
+            ...this.applyClampsInPlace(records, () => ({ field: 'oncosts_pct', label: 'oncosts_pct', band: bands.labour_oncosts })),
+            ...this.applyClampsInPlace(records, () => ({ field: 'mgmt_oncosts_pct', label: 'mgmt_oncosts_pct', band: bands.mgmt_oncosts })),
+            ...this.applyClampsInPlace(records, () => ({ field: 'award_increase_pct', label: 'award_increase_pct', band: bands.award_increase }))
+        ];
+
+        return { records, errors, clamps };
     },
 
     // 6. COGS assumptions
@@ -426,7 +465,18 @@ const ExcelParser = {
             }
         }
 
-        return { records, errors };
+        const bands = CONFIG.SANITY_BANDS || {};
+        const bandByCat = {
+            food: bands.cogs_food, packaging: bands.cogs_packaging,
+            retail: bands.cogs_retail, sale_discounts: bands.cogs_discounts
+        };
+        const clamps = this.applyClampsInPlace(records, r => ({
+            field: 'cogs_pct',
+            label: `cogs_${r.category}`,
+            band: bandByCat[r.category]
+        }));
+
+        return { records, errors, clamps };
     },
 
     // 7. Rent assumptions
@@ -451,7 +501,13 @@ const ExcelParser = {
             });
         }
 
-        return { records, errors };
+        const bands = CONFIG.SANITY_BANDS || {};
+        const clamps = [
+            ...this.applyClampsInPlace(records, () => ({ field: 'marketing_levy_pct', label: 'marketing_levy_pct', band: bands.marketing_levy })),
+            ...this.applyClampsInPlace(records, () => ({ field: 'pct_rent_rate', label: 'pct_rent_rate', band: bands.pct_rent_rate }))
+        ];
+
+        return { records, errors, clamps };
     },
 
     parseOtherPnl(wb) {
@@ -507,16 +563,23 @@ const ExcelParser = {
 
     // Returns reasonableness warnings for a single uploaded template, by inspecting parsed records.
     // Warnings are non-blocking: they surface to the upload status to flag likely unit/data errors.
+    // If parser auto-clamped values (parsed.clamps), include those as "AUTO-CORRECTED" lines.
     sanityWarnings(templateKey, parsed) {
         const bands = (CONFIG.SANITY_BANDS || {});
         const warnings = [];
         const venueLabel = (r) => r.venue_name || r.venue_key || '?';
+        const fmtPct = (v) => Number.isFinite(v) ? `${(v * 100).toFixed(2)}%` : String(v);
         const checkBand = (label, value, band) => {
             if (value == null || !Number.isFinite(value) || !band) return;
             if (value < band.min || value > band.max) {
                 warnings.push(`${label}: ${value} outside expected ${band.label} band (${band.min}–${band.max})`);
             }
         };
+
+        // Surface auto-clamps first (more actionable than abstract band check on already-corrected data)
+        for (const c of (parsed?.clamps || [])) {
+            warnings.push(`AUTO-CORRECTED ${c.venue} ${c.field}: was ${fmtPct(c.original)} → capped to ${fmtPct(c.corrected)} (${c.reason}; band ${c.band.min}–${c.band.max})`);
+        }
 
         const records = parsed?.records || [];
         if (templateKey === 'cogs') {
