@@ -249,6 +249,18 @@ const CALENDARS = {
         return null;
     },
 
+    getHolidayDatesForState(state, startDate, endDate) {
+        const dates = new Set();
+        for (const map of [this.publicHolidayLabels.national, this.publicHolidayLabels[state] || {}]) {
+            for (const date of Object.keys(map)) {
+                if ((!startDate || date >= startDate) && (!endDate || date <= endDate)) {
+                    dates.add(date);
+                }
+            }
+        }
+        return [...dates].sort();
+    },
+
     parseDate(dateStr) {
         const match = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (!match) return null;

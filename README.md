@@ -43,4 +43,4 @@ The updated zip bundle is included as `templates/frozen-yoghurt-budget-templates
 
 ## Backend
 
-The frontend calls your Render forecast API at `/forecast-multi`. The app can still run using the browser-only local seasonality fallback if the API URL is left blank or the API is unavailable.
+The frontend calls your Render forecast API at `/forecast-multi`. It sends each venue's loaded sales history, state public holidays, and historical/projected weather map so the Prophet/SARIMA API can use holiday and temperature regressors. The app can still run using the browser-only local seasonality fallback if the API URL is left blank or the API is unavailable; the venue template monthly growth modifiers are applied after either API or local forecasts.

@@ -108,11 +108,27 @@ const SalesForecastEngine = {
             const venues = [];
             for (const venueKey of batch) {
                 const sales = grouped[venueKey].sort((a, b) => a.sale_date.localeCompare(b.sale_date));
+                const venue = venueDetails.find(v => v.venue_key === venueKey);
+                const historyStart = sales[0]?.sale_date;
+                const historyEnd = sales[sales.length - 1]?.sale_date;
+                const apiForecastEnd = historyEnd
+                    ? this.addDays(historyEnd, forecastDays)
+                    : CONFIG.BUDGET_YEAR_END;
+                const holidayDates = venue
+                    ? CALENDARS.getHolidayDatesForState(venue.state, historyStart, apiForecastEnd)
+                    : [];
+                const hasWeather = venue && (WeatherEngine.weatherData[venue.state] || []).length > 0;
+                const weatherMap = hasWeather && historyStart
+                    ? WeatherEngine.buildWeatherMapForState(venue.state, historyStart, apiForecastEnd)
+                    : {};
                 venues.push({
                     name: venueKey,
+                    state: venue?.state || null,
                     dates: sales.map(s => s.sale_date),
                     values: sales.map(s => s.gross_sales),
-                    forecast_days: forecastDays
+                    forecast_days: forecastDays,
+                    holiday_dates: holidayDates,
+                    weather_map: weatherMap
                 });
             }
 
@@ -146,6 +162,12 @@ const SalesForecastEngine = {
         }
 
         this.useApi = Object.keys(this.apiForecasts).length > 0;
+    },
+
+    addDays(dateStr, days) {
+        const date = new Date(dateStr);
+        date.setDate(date.getDate() + days);
+        return date.toISOString().substring(0, 10);
     },
 
     getRampUpMultiplier(venue, dateStr, rampUpData) {
@@ -236,7 +258,7 @@ const SalesForecastEngine = {
                         }
                     }
 
-                    const weatherIndex = WeatherEngine.getWeatherIndex(venue.state, monthNum);
+                    const weatherIndex = WeatherEngine.getWeatherIndexForDate(venue.state, dateStr);
 
                     if (baseDaily > 0) {
                         forecastSales = baseDaily * dowIndex * monthIndex * holidayAdj * weatherIndex * rampUp;

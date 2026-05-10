@@ -124,9 +124,68 @@ const WeatherEngine = {
         return monthTemps.reduce((a, b) => a + b, 0) / monthTemps.length;
     },
 
+    getExpectedWeatherForDate(state, dateStr) {
+        const month = parseInt(dateStr.substring(5, 7));
+        const stateData = this.weatherData[state] || [];
+        const monthRows = stateData.filter(w => parseInt(w.observation_date.substring(5, 7)) === month);
+        const avg = (field, fallback = null) => {
+            const values = monthRows
+                .map(w => w[field])
+                .filter(v => v != null && !Number.isNaN(Number(v)))
+                .map(Number);
+            if (!values.length) return fallback;
+            return values.reduce((a, b) => a + b, 0) / values.length;
+        };
+
+        return {
+            state,
+            observation_date: dateStr,
+            max_temp_c: avg('max_temp_c', this.getExpectedTempForMonth(state, month)),
+            min_temp_c: avg('min_temp_c', null),
+            rainfall_mm: avg('rainfall_mm', 0),
+            sunshine_hours: avg('sunshine_hours', null),
+            projected: true
+        };
+    },
+
+    getWeatherForForecastDate(state, dateStr) {
+        return this.getWeatherForDate(state, dateStr) || this.getExpectedWeatherForDate(state, dateStr);
+    },
+
+    buildWeatherMapForState(state, startDate, endDate) {
+        const map = {};
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const current = new Date(start);
+
+        while (current <= end) {
+            const dateStr = current.toISOString().substring(0, 10);
+            const weather = this.getWeatherForForecastDate(state, dateStr);
+            if (weather) {
+                map[dateStr] = {
+                    tMax: weather.max_temp_c,
+                    tMin: weather.min_temp_c,
+                    rain: weather.rainfall_mm,
+                    sunshine: weather.sunshine_hours,
+                    projected: Boolean(weather.projected)
+                };
+            }
+            current.setDate(current.getDate() + 1);
+        }
+        return map;
+    },
+
     getWeatherIndex(state, month) {
         const expectedTemp = this.getExpectedTempForMonth(state, month);
         const band = this.getTempBand(expectedTemp);
+        if (!band || !this.tempBandIndices[state]) return 1.0;
+        return this.tempBandIndices[state][band] || 1.0;
+    },
+
+    getWeatherIndexForDate(state, dateStr) {
+        const weather = this.getWeatherForForecastDate(state, dateStr);
+        const temp = weather?.max_temp_c;
+        const band = temp != null ? this.getTempBand(temp) : null;
         if (!band || !this.tempBandIndices[state]) return 1.0;
         return this.tempBandIndices[state][band] || 1.0;
     }

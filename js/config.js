@@ -3,7 +3,7 @@ const CONFIG = {
     SUPABASE_ANON_KEY: '',
 
     // Your existing Render-hosted forecast API
-    FORECAST_API_URL: '',  // e.g. https://venu-cast-api.onrender.com
+    FORECAST_API_URL: 'https://venu-cast-api.onrender.com',
 
     BUDGET_YEAR_START: '2026-07-01',
     BUDGET_YEAR_END: '2027-06-30',

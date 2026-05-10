@@ -176,7 +176,7 @@ const App = {
         const apiUrl = localStorage.getItem('api_url');
         if (url) document.getElementById('supabase-url').value = url;
         if (key) document.getElementById('supabase-key').value = key;
-        if (apiUrl) document.getElementById('api-url').value = apiUrl;
+        document.getElementById('api-url').value = apiUrl || CONFIG.FORECAST_API_URL || '';
     },
 
     updateRunButton() {
