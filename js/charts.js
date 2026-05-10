@@ -205,6 +205,78 @@ const Charts = {
         });
     },
 
+    renderSalesDetailMonthly(rows) {
+        this.destroy('chart-sales-detail-monthly');
+        const ctx = document.getElementById('chart-sales-detail-monthly')?.getContext('2d');
+        if (!ctx) return;
+
+        const byMonth = {};
+        for (const row of rows || []) {
+            if (!byMonth[row.month]) {
+                byMonth[row.month] = {
+                    fy26: 0,
+                    fy27: 0,
+                    scenario: 0,
+                    lflFy26: 0,
+                    lflFy27: 0
+                };
+            }
+            byMonth[row.month].fy26 += row.fy26_total_sales || 0;
+            byMonth[row.month].fy27 += row.fy27_forecast_sales || 0;
+            byMonth[row.month].scenario += row.fy27_scenario_sales || 0;
+            byMonth[row.month].lflFy26 += row.lfl_fy26_sales || 0;
+            byMonth[row.month].lflFy27 += row.lfl_fy27_sales || 0;
+        }
+
+        const months = Object.keys(byMonth).sort();
+        this.instances['chart-sales-detail-monthly'] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'FY26 Comparator',
+                        data: months.map(m => byMonth[m].fy26),
+                        backgroundColor: 'rgba(148,163,184,0.55)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'FY27 Forecast',
+                        data: months.map(m => byMonth[m].fy27),
+                        backgroundColor: 'rgba(99,102,241,0.72)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'FY27 Scenario',
+                        data: months.map(m => byMonth[m].scenario),
+                        type: 'line',
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16,185,129,0.12)',
+                        pointRadius: 3,
+                        borderWidth: 2,
+                        fill: false
+                    },
+                    {
+                        label: 'LFL FY27',
+                        data: months.map(m => byMonth[m].lflFy27),
+                        type: 'line',
+                        borderColor: '#f59e0b',
+                        pointRadius: 2,
+                        borderWidth: 2,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    y: { ticks: { callback: v => this.formatCurrency(v) } }
+                }
+            }
+        });
+    },
+
     renderCostStructureChart() {
         this.destroy('chart-cost-structure');
         const kpis = PnlBuilder.getNetworkKPIs();

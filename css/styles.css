@@ -198,6 +198,20 @@ input[type="password"] {
 .btn-secondary:hover:not(:disabled) { background: var(--bg); border-color: var(--primary); }
 .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.btn-compact {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.btn-compact:hover:not(:disabled) { background: var(--bg); border-color: var(--primary); }
+.btn-compact:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Progress Bar */
 .progress-bar {
     margin-top: 12px;
@@ -244,6 +258,52 @@ input[type="password"] {
     border-radius: 4px;
     font-size: 13px;
     background: var(--surface);
+}
+
+.sales-detail-filters {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.inline-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.inline-control input {
+    width: 82px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.sales-detail-kpis {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.detail-status {
+    min-height: 20px;
+    margin: 12px 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.detail-subheader {
+    margin-top: 24px;
+}
+
+#detail-sales-table th,
+#detail-completion-table th {
+    font-size: 12px;
+}
+
+#detail-sales-table td,
+#detail-completion-table td {
+    font-variant-numeric: tabular-nums;
 }
 
 /* Tables */

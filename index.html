@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frozen Yoghurt QSR Budget Model</title>
-    <link rel="stylesheet" href="css/styles.css?v=20260508-accounts">
+    <link rel="stylesheet" href="css/styles.css?v=20260510-sales-detail">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -24,6 +24,7 @@
         <button class="tab active" data-tab="upload">Upload</button>
         <button class="tab" data-tab="venues">Venues</button>
         <button class="tab" data-tab="sales-forecast">Sales Forecast</button>
+        <button class="tab" data-tab="sales-detail">Sales Detail</button>
         <button class="tab" data-tab="pnl">P&L Budget</button>
         <button class="tab" data-tab="dashboard">Dashboard</button>
         <button class="tab" data-tab="export">Export</button>
@@ -230,6 +231,81 @@
             </div>
         </section>
 
+        <!-- SALES DETAIL TAB -->
+        <section id="tab-sales-detail" class="tab-content">
+            <div class="section-header">
+                <h2>Sales Detail</h2>
+                <div class="filters sales-detail-filters">
+                    <select id="detail-state-filter">
+                        <option value="__all__">All States</option>
+                    </select>
+                    <select id="detail-cluster-filter">
+                        <option value="__all__">All Clusters</option>
+                    </select>
+                    <select id="detail-venue-filter">
+                        <option value="__all__">All Venues</option>
+                    </select>
+                    <select id="detail-group-by">
+                        <option value="month">Month</option>
+                        <option value="state">State by Month</option>
+                        <option value="cluster">Cluster by Month</option>
+                        <option value="venue">Venue by Month</option>
+                    </select>
+                    <label class="inline-control">Growth %
+                        <input type="number" id="detail-growth-input" value="0" step="0.5">
+                    </label>
+                    <button id="btn-detail-refresh" class="btn-compact">Refresh</button>
+                    <button id="btn-detail-apply-growth" class="btn-compact">Apply to Growth Assumptions</button>
+                </div>
+            </div>
+
+            <div class="kpi-row sales-detail-kpis">
+                <div class="kpi-card">
+                    <span class="kpi-label">FY27 Forecast Sales</span>
+                    <span class="kpi-value" id="detail-kpi-fy27">-</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">FY26 Comparator</span>
+                    <span class="kpi-value" id="detail-kpi-fy26">-</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">Total Growth</span>
+                    <span class="kpi-value" id="detail-kpi-growth">-</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">LFL Growth</span>
+                    <span class="kpi-value" id="detail-kpi-lfl">-</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">FY26 Completion Forecast</span>
+                    <span class="kpi-value" id="detail-kpi-completion">-</span>
+                </div>
+            </div>
+
+            <div class="chart-panel wide">
+                <h3>Monthly Sales Comparison</h3>
+                <canvas id="chart-sales-detail-monthly"></canvas>
+            </div>
+
+            <div id="detail-status" class="detail-status"></div>
+            <div class="table-container">
+                <table id="detail-sales-table">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="section-header detail-subheader">
+                <h2>FY26 Forecast Completion Days</h2>
+            </div>
+            <div class="table-container">
+                <table id="detail-completion-table">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
         <!-- P&L BUDGET TAB -->
         <section id="tab-pnl" class="tab-content">
             <div class="section-header">
@@ -369,8 +445,9 @@
     <script src="js/engine/rent-calc.js?v=20260509-category-signs"></script>
     <script src="js/engine/other-pnl-calc.js?v=20260509-category-signs"></script>
     <script src="js/engine/pnl-builder.js?v=20260509-category-signs"></script>
-    <script src="js/charts.js?v=20260509-category-signs"></script>
+    <script src="js/sales-analysis.js?v=20260510-sales-detail"></script>
+    <script src="js/charts.js?v=20260510-sales-detail"></script>
     <script src="js/export.js?v=20260509-category-signs"></script>
-    <script src="js/app.js?v=20260509-category-signs"></script>
+    <script src="js/app.js?v=20260510-sales-detail"></script>
 </body>
 </html>

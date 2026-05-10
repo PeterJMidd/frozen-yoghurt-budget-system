@@ -20,6 +20,9 @@ const App = {
                     const venueKey = document.getElementById('forecast-venue-filter').value;
                     Charts.renderAllSalesCharts(venueKey);
                 }
+                if (tab.dataset.tab === 'sales-detail' && this.budgetReady) {
+                    this.renderSalesDetail();
+                }
                 if (tab.dataset.tab === 'dashboard' && this.budgetReady) {
                     this.renderDashboard();
                 }
@@ -69,6 +72,9 @@ const App = {
                     if (key === 'venue_details') {
                         this.populateVenueFilters(result.venues);
                         this.renderVenueTable(result.venues);
+                    }
+                    if ((key === 'venue_details' || key === 'sales_history') && ExcelParser.uploads.venue_details) {
+                        this.populateSalesDetailFilters();
                     }
                 } catch (err) {
                     status.textContent = `Error: ${err.message}`;
@@ -157,6 +163,16 @@ const App = {
         document.getElementById('forecast-venue-filter').addEventListener('change', (e) => {
             if (this.budgetReady) Charts.renderAllSalesCharts(e.target.value);
         });
+
+        for (const id of ['detail-state-filter', 'detail-cluster-filter', 'detail-venue-filter', 'detail-group-by', 'detail-growth-input']) {
+            document.getElementById(id).addEventListener('change', () => {
+                if (this.budgetReady) this.renderSalesDetail();
+            });
+        }
+        document.getElementById('btn-detail-refresh').addEventListener('click', () => {
+            if (this.budgetReady) this.renderSalesDetail();
+        });
+        document.getElementById('btn-detail-apply-growth').addEventListener('click', () => this.applyDetailGrowthAssumption());
 
         document.getElementById('pnl-venue-filter').addEventListener('change', () => {
             if (this.budgetReady) this.renderPnlTable();
@@ -291,6 +307,7 @@ const App = {
             this.budgetReady = true;
             this.enableExports();
             this.updateKPIs();
+            this.populateSalesDetailFilters();
 
             const runName = document.getElementById('run-name').value || 'Budget';
             document.getElementById('run-name-display').textContent = runName;
@@ -345,6 +362,168 @@ const App = {
             }
             if (current) select.value = current;
         }
+        this.populateSalesDetailFilters();
+    },
+
+    populateSalesDetailFilters() {
+        if (!window.SalesAnalysisEngine) return;
+        const options = SalesAnalysisEngine.getFilterOptions();
+        const stateSelect = document.getElementById('detail-state-filter');
+        const clusterSelect = document.getElementById('detail-cluster-filter');
+        const venueSelect = document.getElementById('detail-venue-filter');
+        if (!stateSelect || !clusterSelect || !venueSelect) return;
+
+        const setOptions = (select, placeholder, values, labelFn = v => v, valueFn = v => v) => {
+            const current = select.value;
+            select.innerHTML = `<option value="__all__">${placeholder}</option>`;
+            for (const value of values) {
+                const opt = document.createElement('option');
+                opt.value = valueFn(value);
+                opt.textContent = labelFn(value);
+                select.appendChild(opt);
+            }
+            if ([...select.options].some(o => o.value === current)) select.value = current;
+        };
+
+        setOptions(stateSelect, 'All States', options.states);
+        setOptions(clusterSelect, 'All Clusters', options.clusters);
+        setOptions(
+            venueSelect,
+            'All Venues',
+            options.venues,
+            v => `${v.venue_name} (${v.state})`,
+            v => v.venue_key
+        );
+    },
+
+    getSalesDetailFilters() {
+        return {
+            state: document.getElementById('detail-state-filter').value,
+            cluster: document.getElementById('detail-cluster-filter').value,
+            venue: document.getElementById('detail-venue-filter').value
+        };
+    },
+
+    renderSalesDetail() {
+        const filters = this.getSalesDetailFilters();
+        const groupBy = document.getElementById('detail-group-by').value;
+        const growthPct = Number(document.getElementById('detail-growth-input').value || 0);
+        const rows = SalesAnalysisEngine.buildMonthlyRows(filters, groupBy, growthPct);
+        const completionRows = SalesAnalysisEngine.buildCompletionRows(filters, groupBy);
+        const summary = SalesAnalysisEngine.summarise(rows);
+
+        const fmt = (v) => new Intl.NumberFormat('en-AU', {
+            style: 'currency',
+            currency: 'AUD',
+            maximumFractionDigits: 0
+        }).format(v || 0);
+        const pct = (v) => v == null || !Number.isFinite(v) ? '-' : `${v.toFixed(1)}%`;
+
+        document.getElementById('detail-kpi-fy27').textContent = fmt(summary.fy27);
+        document.getElementById('detail-kpi-fy26').textContent = fmt(summary.fy26);
+        document.getElementById('detail-kpi-growth').textContent = pct(summary.fy26 ? ((summary.fy27 - summary.fy26) / summary.fy26) * 100 : null);
+        document.getElementById('detail-kpi-lfl').textContent = pct(summary.lflFy26 ? ((summary.lflFy27 - summary.lflFy26) / summary.lflFy26) * 100 : null);
+        document.getElementById('detail-kpi-completion').textContent = fmt(summary.fy26Completion);
+
+        document.getElementById('detail-status').textContent =
+            `${rows.length.toLocaleString()} monthly comparison rows | ${completionRows.length.toLocaleString()} FY26 completion forecast rows | Scenario growth ${growthPct.toFixed(1)}%`;
+
+        Charts.renderSalesDetailMonthly(rows);
+        this.renderSalesDetailTable(rows);
+        this.renderCompletionTable(completionRows);
+    },
+
+    renderSalesDetailTable(rows) {
+        const thead = document.querySelector('#detail-sales-table thead');
+        const tbody = document.querySelector('#detail-sales-table tbody');
+        thead.innerHTML = `
+            <tr>
+                <th>Month</th>
+                <th>Group</th>
+                <th class="number">Venues</th>
+                <th class="number">LFL Venues</th>
+                <th class="number">FY26 Actual</th>
+                <th class="number">FY26 Forecast Fill</th>
+                <th class="number">FY26 Comparator</th>
+                <th class="number">FY27 Forecast</th>
+                <th class="number">FY27 Scenario</th>
+                <th class="number">Total Growth</th>
+                <th class="number">Scenario Growth</th>
+                <th class="number">LFL Growth</th>
+            </tr>
+        `;
+        tbody.innerHTML = '';
+
+        const fmt = (v) => '$' + Math.round(v || 0).toLocaleString();
+        const pct = (v) => v == null || !Number.isFinite(v) ? '-' : `${v.toFixed(1)}%`;
+        for (const row of rows) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row.month}</td>
+                <td>${row.group}</td>
+                <td class="number">${row.venue_count}</td>
+                <td class="number">${row.lfl_venue_count}</td>
+                <td class="number">${fmt(row.fy26_actual_sales)}</td>
+                <td class="number">${fmt(row.fy26_completion_forecast)}</td>
+                <td class="number">${fmt(row.fy26_total_sales)}</td>
+                <td class="number">${fmt(row.fy27_forecast_sales)}</td>
+                <td class="number">${fmt(row.fy27_scenario_sales)}</td>
+                <td class="number ${row.total_growth_pct >= 0 ? 'positive' : 'negative'}">${pct(row.total_growth_pct)}</td>
+                <td class="number ${row.scenario_growth_pct >= 0 ? 'positive' : 'negative'}">${pct(row.scenario_growth_pct)}</td>
+                <td class="number ${row.lfl_growth_pct >= 0 ? 'positive' : 'negative'}">${pct(row.lfl_growth_pct)}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    },
+
+    renderCompletionTable(rows) {
+        const thead = document.querySelector('#detail-completion-table thead');
+        const tbody = document.querySelector('#detail-completion-table tbody');
+        thead.innerHTML = `
+            <tr>
+                <th>Date</th>
+                <th>Group</th>
+                <th class="number">Forecast Sales</th>
+                <th class="number">API Model Sales</th>
+                <th class="number">Local Fallback Sales</th>
+            </tr>
+        `;
+        tbody.innerHTML = '';
+
+        const fmt = (v) => '$' + Math.round(v || 0).toLocaleString();
+        for (const row of rows.slice(0, 500)) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row.date}</td>
+                <td>${row.group}</td>
+                <td class="number">${fmt(row.forecast_sales)}</td>
+                <td class="number">${fmt(row.source_api_sales)}</td>
+                <td class="number">${fmt(row.source_local_sales)}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+        if (rows.length > 500) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="5">Showing first 500 of ${rows.length.toLocaleString()} completion rows. Use filters or group by month/state/cluster to narrow.</td>`;
+            tbody.appendChild(tr);
+        }
+    },
+
+    applyDetailGrowthAssumption() {
+        if (!ExcelParser.uploads.venue_details) return;
+        const filters = this.getSalesDetailFilters();
+        const venues = SalesAnalysisEngine.selectedVenues(filters);
+        const growthPct = Number(document.getElementById('detail-growth-input').value || 0);
+        const growthValue = growthPct / 100;
+        const monthlyGrowth = ExcelParser.uploads.venue_details.monthlyGrowth || {};
+
+        for (const venue of venues) {
+            monthlyGrowth[venue.venue_key] = Array(CONFIG.RAMP_UP_MONTHS).fill(growthValue);
+        }
+        ExcelParser.uploads.venue_details.monthlyGrowth = monthlyGrowth;
+        document.getElementById('detail-status').textContent =
+            `Updated loaded monthly growth assumptions for ${venues.length.toLocaleString()} venues to ${growthPct.toFixed(1)}%. Regenerate the budget to flow this through P&L.`;
+        if (this.budgetReady) this.renderSalesDetail();
     },
 
     renderVenueTable(venues) {
