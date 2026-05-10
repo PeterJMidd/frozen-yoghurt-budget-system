@@ -164,7 +164,7 @@ const App = {
             if (this.budgetReady) Charts.renderAllSalesCharts(e.target.value);
         });
 
-        for (const id of ['detail-state-filter', 'detail-cluster-filter', 'detail-venue-filter', 'detail-group-by', 'detail-growth-input']) {
+        for (const id of ['detail-state-filter', 'detail-cluster-filter', 'detail-cohort-filter', 'detail-venue-filter', 'detail-group-by', 'detail-growth-input']) {
             document.getElementById(id).addEventListener('change', () => {
                 if (this.budgetReady) this.renderSalesDetail();
             });
@@ -400,6 +400,7 @@ const App = {
         return {
             state: document.getElementById('detail-state-filter').value,
             cluster: document.getElementById('detail-cluster-filter').value,
+            cohort: document.getElementById('detail-cohort-filter').value,
             venue: document.getElementById('detail-venue-filter').value
         };
     },

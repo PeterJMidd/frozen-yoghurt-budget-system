@@ -58,6 +58,21 @@ const SalesAnalysisEngine = {
         return { venueDetails, salesHistory, historyEnd, clusters };
     },
 
+    storeCohort(venue) {
+        const openingDate = String(venue.opening_date || '');
+        if (venue.is_new_venue || (openingDate >= '2026-07-01' && openingDate <= '2027-06-30')) {
+            return 'new_fy27';
+        }
+        if (openingDate >= '2025-07-01' && openingDate <= '2026-06-30') {
+            return 'new_fy26';
+        }
+        return 'same_store';
+    },
+
+    isVenueOpenOn(venue, dateStr) {
+        return !venue.opening_date || String(venue.opening_date) <= String(dateStr);
+    },
+
     buildVenueClusters(venues, salesHistory) {
         const latestDate = salesHistory.reduce((max, row) =>
             !max || row.sale_date > max ? row.sale_date : max, null);
@@ -116,6 +131,7 @@ const SalesAnalysisEngine = {
         return venueDetails.filter(v => {
             if (filters.state && filters.state !== '__all__' && v.state !== filters.state) return false;
             if (filters.cluster && filters.cluster !== '__all__' && clusters[v.venue_key] !== filters.cluster) return false;
+            if (filters.cohort && filters.cohort !== '__all__' && this.storeCohort(v) !== filters.cohort) return false;
             if (filters.venue && filters.venue !== '__all__' && v.venue_key !== filters.venue) return false;
             return true;
         });
@@ -131,10 +147,19 @@ const SalesAnalysisEngine = {
     },
 
     getComparatorSales(venue, dateStr, salesMap, historyEnd) {
+        if (!this.isVenueOpenOn(venue, dateStr)) {
+            return { amount: 0, source: 'closed' };
+        }
+
         const actual = salesMap[venue.venue_key]?.[dateStr];
         if (actual != null && dateStr <= historyEnd) {
             return { amount: actual, source: 'actual' };
         }
+
+        if (dateStr <= historyEnd) {
+            return { amount: 0, source: 'no_actual' };
+        }
+
         if (dateStr > this.FY26_END) return { amount: 0, source: 'none' };
 
         const apiValue = SalesForecastEngine.apiForecasts[venue.venue_key]?.[dateStr];
@@ -170,7 +195,6 @@ const SalesAnalysisEngine = {
     },
 
     isLflVenueForComparatorMonth(venue, comparatorMonthStart) {
-        if (venue.is_new_venue) return false;
         const openDate = new Date(`${venue.opening_date}T00:00:00`);
         const compMonth = new Date(`${comparatorMonthStart}T00:00:00`);
         return openDate <= compMonth;
