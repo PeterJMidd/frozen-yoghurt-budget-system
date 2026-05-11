@@ -109,7 +109,9 @@ const CONFIG = {
     SANITY_BANDS: {
         cogs_food:        { min: 0.12, max: 0.40, label: 'COGS Food %' },
         cogs_packaging:   { min: 0.01, max: 0.12, label: 'COGS Packaging %' },
-        cogs_retail:      { min: 0.00, max: 0.10, label: 'COGS Retail %' },
+        // Retail typically a tiny % of total sales in QSR (e.g. tubs/merch). Tightened from 10% -> 2%
+        // after observing prior-year actual at 0.3-0.5% of net sales chain-wide.
+        cogs_retail:      { min: 0.00, max: 0.02, label: 'COGS Retail %' },
         cogs_discounts:   { min: 0.00, max: 0.15, label: 'COGS Discount %' },
         labour_oncosts:   { min: 0.05, max: 0.30, label: 'Crew Oncosts %' },
         mgmt_oncosts:     { min: 0.05, max: 0.30, label: 'Mgmt Oncosts %' },

@@ -264,6 +264,14 @@ const PnlBuilder = {
                 }
             }
         }
+
+        // Synthesize prior gross_sales if not present but net_sales + discounts are.
+        if (!totals.gross_sales && (totals.net_sales || totals.cogs_discounts)) {
+            totals.gross_sales = (totals.net_sales || 0) + Math.abs(totals.cogs_discounts || 0);
+        }
+        // If prior has a single 'labour_total' but no crew/mgmt split, leave the split lines at 0
+        // (so they show as variance) but use the total for comparison at subtotal level.
+
         return totals;
     },
 
