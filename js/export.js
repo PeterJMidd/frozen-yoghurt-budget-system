@@ -301,8 +301,8 @@ const ExportEngine = {
         XLSX.utils.book_append_sheet(wb, wsCogs, 'COGS');
 
         const wsRent = XLSX.utils.aoa_to_sheet([
-            ['venue_name', 'Base Rent Monthly', 'Outgoings Monthly', '% Rent Threshold', '% Rent Rate', 'Marketing Levy %'],
-            ['Venue 1', 8000, 2500, 50000, 8, 2]
+            ['venue_name', 'Base Rent Monthly', 'Outgoings Monthly', '% Rent Threshold', '% Rent Rate', 'Marketing Levy %', 'Marketing Levy Monthly'],
+            ['Venue 1', 8000, 2500, 50000, 8, 0, 400]
         ]);
         XLSX.utils.book_append_sheet(wb, wsRent, 'Rent');
 

@@ -497,12 +497,17 @@ const ExcelParser = {
                 outgoings_monthly: Number(row.outgoings_monthly || row['Outgoings Monthly'] || row['Outgoings'] || 0),
                 pct_rent_threshold: Number(row.pct_rent_threshold || row['% Rent Threshold'] || row['Pct Rent Threshold'] || 0),
                 pct_rent_rate: this.parsePct(row.pct_rent_rate ?? row['% Rent Rate'] ?? row['Pct Rent Rate'] ?? 0),
-                marketing_levy_pct: this.parsePct(row.marketing_levy_pct ?? row['Marketing Levy %'] ?? row['Marketing Levy'] ?? 0)
+                marketing_levy_pct: this.parsePct(row.marketing_levy_pct ?? row['Marketing Levy %'] ?? 0),
+                // NEW: $ monthly marketing levy (preferred when non-zero — used for lease-fixed
+                // centre marketing contributions which are $ amounts, not % of sales).
+                marketing_levy_monthly: Number(row.marketing_levy_monthly ?? row['Marketing Levy Monthly'] ?? row['Marketing Levy'] ?? 0)
             });
         }
 
         const bands = CONFIG.SANITY_BANDS || {};
         const clamps = [
+            // Only clamp the %-of-sales levy field. The $ monthly field is a dollar amount
+            // and shouldn't be clamped on the same band.
             ...this.applyClampsInPlace(records, () => ({ field: 'marketing_levy_pct', label: 'marketing_levy_pct', band: bands.marketing_levy })),
             ...this.applyClampsInPlace(records, () => ({ field: 'pct_rent_rate', label: 'pct_rent_rate', band: bands.pct_rent_rate }))
         ];

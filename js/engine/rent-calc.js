@@ -43,7 +43,12 @@ const RentCalcEngine = {
                 }
             }
 
-            const marketingLevy = forecast.net_sales * (rent.marketing_levy_pct || 0);
+            // Marketing levy: use the lease-fixed $ monthly amount when supplied (typical of
+            // centre marketing fund contributions), otherwise fall back to % of net sales.
+            const levyMonthlyDollar = Number(rent.marketing_levy_monthly || 0);
+            const marketingLevy = levyMonthlyDollar > 0
+                ? (levyMonthlyDollar / daysInMonth)
+                : (forecast.net_sales * (rent.marketing_levy_pct || 0));
 
             forecast.rent_base = Math.round(baseRentDaily * 100) / 100;
             forecast.rent_outgoings = Math.round(outgoingsDaily * 100) / 100;
