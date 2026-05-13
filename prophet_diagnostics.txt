@@ -1,0 +1,198 @@
+Prophet forecast diagnostics — 195 (venue, stream) fits
+
+                       venue    stream            method  history_days    rmse  rmse_pct_of_mean                           note
+0           Yo-Chi Albert St  servings           prophet          1311  2005.0              15.5   changepoint=0.05 yearly=True
+1           Yo-Chi Albert St    retail           prophet           360    46.0              53.2  changepoint=0.03 yearly=False
+2           Yo-Chi Albert St  discount           prophet          1311   381.0             124.1   changepoint=0.05 yearly=True
+3           Yo-Chi Balaclava  servings           prophet          2167  2313.0              47.2   changepoint=0.05 yearly=True
+4           Yo-Chi Balaclava    retail           prophet           341    28.0              62.2  changepoint=0.03 yearly=False
+5           Yo-Chi Balaclava  discount           prophet          2167   260.0             158.7   changepoint=0.05 yearly=True
+6          Yo-Chi Barangaroo  servings           prophet           500  5056.0              28.3  changepoint=0.05 yearly=False
+7          Yo-Chi Barangaroo    retail           prophet           347    46.0              62.5  changepoint=0.03 yearly=False
+8          Yo-Chi Barangaroo  discount           prophet           500   863.0             144.0  changepoint=0.05 yearly=False
+9               Yo-Chi Bondi  servings           prophet           647  3410.0              29.6   changepoint=0.05 yearly=True
+10              Yo-Chi Bondi    retail           prophet           320    33.0              66.4  changepoint=0.03 yearly=False
+11              Yo-Chi Bondi  discount           prophet           646   412.0             118.3   changepoint=0.05 yearly=True
+12     Yo-Chi Bondi Junction  servings           prophet           340  1368.0              23.5  changepoint=0.03 yearly=False
+13     Yo-Chi Bondi Junction    retail           prophet           310    33.0              70.3  changepoint=0.03 yearly=False
+14     Yo-Chi Bondi Junction  discount           prophet           340   474.0             130.5  changepoint=0.03 yearly=False
+15           Yo-Chi Brighton  servings           prophet          1297  1782.0              25.4   changepoint=0.05 yearly=True
+16           Yo-Chi Brighton    retail           prophet           326    36.0              64.7  changepoint=0.03 yearly=False
+17           Yo-Chi Brighton  discount           prophet          1297   290.0             119.9   changepoint=0.05 yearly=True
+18         Yo-Chi Broadbeach  servings           prophet          1312  2320.0              21.6   changepoint=0.05 yearly=True
+19         Yo-Chi Broadbeach    retail           prophet           234    43.0              83.1  changepoint=0.03 yearly=False
+20         Yo-Chi Broadbeach  discount           prophet          1310   264.0             105.4   changepoint=0.05 yearly=True
+21            Yo-Chi Bulimba  servings           prophet           621  1693.0              21.3   changepoint=0.05 yearly=True
+22            Yo-Chi Bulimba    retail           prophet           332    38.0              63.5  changepoint=0.03 yearly=False
+23            Yo-Chi Bulimba  discount           prophet           621   360.0             103.8   changepoint=0.05 yearly=True
+24           Yo-Chi Burleigh  servings           prophet           636  2441.0              26.5   changepoint=0.05 yearly=True
+25           Yo-Chi Burleigh    retail           prophet           304    32.0              74.7  changepoint=0.03 yearly=False
+26           Yo-Chi Burleigh  discount           prophet           635   457.0             117.2   changepoint=0.05 yearly=True
+27            Yo-Chi Burwood  servings           prophet           191  1685.0              13.7  changepoint=0.03 yearly=False
+28            Yo-Chi Burwood    retail           prophet           184    40.0              54.4  changepoint=0.03 yearly=False
+29            Yo-Chi Burwood  discount           prophet           191   677.0             115.9  changepoint=0.03 yearly=False
+30            Yo-Chi Carlton  servings           prophet          2158  4073.0              37.7   changepoint=0.05 yearly=True
+31            Yo-Chi Carlton    retail           prophet           347    55.0              50.4  changepoint=0.03 yearly=False
+32            Yo-Chi Carlton  discount           prophet          2158   594.0             194.2   changepoint=0.05 yearly=True
+33      Yo-Chi Castle Towers  servings           prophet           184  3505.0              29.8  changepoint=0.03 yearly=False
+34      Yo-Chi Castle Towers    retail  cluster-fallback           165     NaN               NaN     cluster=SYD 2 baseline=$24
+35      Yo-Chi Castle Towers  discount           prophet           184   739.0             141.5  changepoint=0.03 yearly=False
+36          Yo-Chi Chadstone  servings           prophet           396  1799.0              25.2  changepoint=0.05 yearly=False
+37          Yo-Chi Chadstone    retail           prophet           313    36.0              82.2  changepoint=0.03 yearly=False
+38          Yo-Chi Chadstone  discount           prophet           396   691.0             146.3  changepoint=0.05 yearly=False
+39          Yo-Chi Chatswood  servings           prophet           228  2014.0              20.1  changepoint=0.03 yearly=False
+40          Yo-Chi Chatswood    retail           prophet           215    42.0              65.4  changepoint=0.03 yearly=False
+41          Yo-Chi Chatswood  discount           prophet           228   698.0             124.9  changepoint=0.03 yearly=False
+42      Yo-Chi Circular Quay  servings           prophet           406  2064.0              18.2  changepoint=0.05 yearly=False
+43      Yo-Chi Circular Quay    retail  cluster-fallback            78     NaN               NaN     cluster=SYD 1 baseline=$38
+44      Yo-Chi Circular Quay  discount           prophet           406   404.0             118.5  changepoint=0.05 yearly=False
+45          Yo-Chi Claremont  servings           prophet           360  1724.0              23.0  changepoint=0.03 yearly=False
+46          Yo-Chi Claremont    retail           prophet           324    53.0              81.3  changepoint=0.03 yearly=False
+47          Yo-Chi Claremont  discount           prophet           360   443.0              90.7  changepoint=0.03 yearly=False
+48   Yo-Chi Cockburn Central  servings           prophet           320  2397.0              18.1  changepoint=0.03 yearly=False
+49   Yo-Chi Cockburn Central    retail           prophet           294    98.0              90.7  changepoint=0.03 yearly=False
+50   Yo-Chi Cockburn Central  discount           prophet           320   591.0              74.3  changepoint=0.03 yearly=False
+51             Yo-Chi Coogee  servings           prophet           574  2798.0              24.0   changepoint=0.05 yearly=True
+52             Yo-Chi Coogee    retail           prophet           343    37.0              56.8  changepoint=0.03 yearly=False
+53             Yo-Chi Coogee  discount           prophet           574   435.0              94.8   changepoint=0.05 yearly=True
+54           Yo-Chi Cronulla  servings           prophet           290  2750.0              24.1  changepoint=0.03 yearly=False
+55           Yo-Chi Cronulla    retail           prophet           236    42.0              84.0  changepoint=0.03 yearly=False
+56           Yo-Chi Cronulla  discount           prophet           290   488.0             114.7  changepoint=0.03 yearly=False
+57         Yo-Chi Currambine  servings           prophet           518  2299.0              19.6  changepoint=0.05 yearly=False
+58         Yo-Chi Currambine    retail           prophet           349    72.0              72.0  changepoint=0.03 yearly=False
+59         Yo-Chi Currambine  discount           prophet           518   494.0              72.7  changepoint=0.05 yearly=False
+60         Yo-Chi Double Bay  servings           prophet           587  1331.0              21.9   changepoint=0.05 yearly=True
+61         Yo-Chi Double Bay    retail           prophet           341    41.0              56.0  changepoint=0.03 yearly=False
+62         Yo-Chi Double Bay  discount           prophet           587   222.0              93.3   changepoint=0.05 yearly=True
+63           Yo-Chi Eastland  servings           prophet           267  2449.0              21.8  changepoint=0.03 yearly=False
+64           Yo-Chi Eastland    retail           prophet           224    68.0              97.3  changepoint=0.03 yearly=False
+65           Yo-Chi Eastland  discount           prophet           266   567.0              99.2  changepoint=0.03 yearly=False
+66      Yo-Chi Forrest Chase  servings           prophet           517  3519.0              24.4  changepoint=0.05 yearly=False
+67      Yo-Chi Forrest Chase    retail           prophet           341    56.0              72.1  changepoint=0.03 yearly=False
+68      Yo-Chi Forrest Chase  discount           prophet           517   709.0             128.9  changepoint=0.05 yearly=False
+69          Yo-Chi Fremantle  servings           prophet           771  2043.0              18.4   changepoint=0.05 yearly=True
+70          Yo-Chi Fremantle    retail           prophet           337    39.0              57.7  changepoint=0.03 yearly=False
+71          Yo-Chi Fremantle  discount           prophet           771   399.0             105.3   changepoint=0.05 yearly=True
+72           Yo-Chi Gasworks  servings           prophet           610  1396.0              16.0   changepoint=0.05 yearly=True
+73           Yo-Chi Gasworks    retail           prophet           334    43.0              71.7  changepoint=0.03 yearly=False
+74           Yo-Chi Gasworks  discount           prophet           610   407.0             114.8   changepoint=0.05 yearly=True
+75          Yo-Chi George St  servings           prophet           245  4408.0              22.6  changepoint=0.03 yearly=False
+76          Yo-Chi George St    retail           prophet           236    71.0              87.1  changepoint=0.03 yearly=False
+77          Yo-Chi George St  discount           prophet           245  1012.0             127.4  changepoint=0.03 yearly=False
+78            Yo-Chi Glenelg  servings           prophet          1164  4695.0              44.4   changepoint=0.05 yearly=True
+79            Yo-Chi Glenelg    retail           prophet           343    64.0             103.6  changepoint=0.03 yearly=False
+80            Yo-Chi Glenelg  discount           prophet          1146   499.0             136.4   changepoint=0.05 yearly=True
+81          Yo-Chi Gouger St  servings           prophet          1163  3672.0              44.3   changepoint=0.05 yearly=True
+82          Yo-Chi Gouger St    retail           prophet           349    39.0              56.3  changepoint=0.03 yearly=False
+83          Yo-Chi Gouger St  discount           prophet          1145   388.0             140.4   changepoint=0.05 yearly=True
+84       Yo-Chi Harbour Town  servings  cluster-fallback             0     NaN               NaN        cluster=nan baseline=$0
+85       Yo-Chi Harbour Town    retail  cluster-fallback             0     NaN               NaN        cluster=nan baseline=$0
+86       Yo-Chi Harbour Town  discount  cluster-fallback             0     NaN               NaN        cluster=nan baseline=$0
+87           Yo-Chi Hawthorn  servings           prophet          2138  3396.0              39.1   changepoint=0.05 yearly=True
+88           Yo-Chi Hawthorn    retail           prophet           360    55.0              59.1  changepoint=0.03 yearly=False
+89           Yo-Chi Hawthorn  discount           prophet          2135   411.0             137.8   changepoint=0.05 yearly=True
+90       Yo-Chi Henley Beach  servings           prophet          1029  2157.0              29.5   changepoint=0.05 yearly=True
+91       Yo-Chi Henley Beach    retail           prophet           325    34.0              63.5  changepoint=0.03 yearly=False
+92       Yo-Chi Henley Beach  discount           prophet          1029   424.0             145.2   changepoint=0.05 yearly=True
+93           Yo-Chi Highgate  servings           prophet           721  1532.0              18.4   changepoint=0.05 yearly=True
+94           Yo-Chi Highgate    retail           prophet           347    67.0              80.0  changepoint=0.03 yearly=False
+95           Yo-Chi Highgate  discount           prophet           721   486.0             117.9   changepoint=0.05 yearly=True
+96          Yo-Chi Highpoint  servings           prophet           296  2203.0              19.2  changepoint=0.03 yearly=False
+97          Yo-Chi Highpoint    retail           prophet           259    48.0              86.9  changepoint=0.03 yearly=False
+98          Yo-Chi Highpoint  discount           prophet           296   500.0             108.4  changepoint=0.03 yearly=False
+99      Yo-Chi Indooroopilly  servings  cluster-fallback             0     NaN               NaN        cluster=nan baseline=$0
+100     Yo-Chi Indooroopilly    retail  cluster-fallback             0     NaN               NaN        cluster=nan baseline=$0
+101     Yo-Chi Indooroopilly  discount  cluster-fallback             0     NaN               NaN        cluster=nan baseline=$0
+102         Yo-Chi Karrinyup  servings           prophet           878  5004.0              28.8   changepoint=0.05 yearly=True
+103         Yo-Chi Karrinyup    retail           prophet           343   142.0              95.3  changepoint=0.03 yearly=False
+104         Yo-Chi Karrinyup  discount           prophet           878   531.0              83.4   changepoint=0.05 yearly=True
+105     Yo-Chi Kawana Waters  servings  cluster-fallback             0     NaN               NaN        cluster=nan baseline=$0
+106     Yo-Chi Kawana Waters    retail  cluster-fallback             0     NaN               NaN        cluster=nan baseline=$0
+107     Yo-Chi Kawana Waters  discount  cluster-fallback             0     NaN               NaN        cluster=nan baseline=$0
+108         Yo-Chi Lane Cove  servings           prophet          1028  1214.0              19.9   changepoint=0.05 yearly=True
+109         Yo-Chi Lane Cove    retail           prophet           360    42.0              52.9  changepoint=0.03 yearly=False
+110         Yo-Chi Lane Cove  discount           prophet          1028   318.0             139.3   changepoint=0.05 yearly=True
+111       Yo-Chi Leederville  servings           prophet           880  1567.0              14.6   changepoint=0.05 yearly=True
+112       Yo-Chi Leederville    retail           prophet           359    53.0              59.4  changepoint=0.03 yearly=False
+113       Yo-Chi Leederville  discount           prophet           879   404.0              96.2   changepoint=0.05 yearly=True
+114         Yo-Chi Macquarie  servings           prophet          1148  1835.0              16.6   changepoint=0.05 yearly=True
+115         Yo-Chi Macquarie    retail           prophet           218    30.0              71.5  changepoint=0.03 yearly=False
+116         Yo-Chi Macquarie  discount           prophet          1148   287.0              89.8   changepoint=0.05 yearly=True
+117           Yo-Chi Malvern  servings           prophet          2163  2372.0              42.7   changepoint=0.05 yearly=True
+118           Yo-Chi Malvern    retail           prophet           343    42.0              60.3  changepoint=0.03 yearly=False
+119           Yo-Chi Malvern  discount           prophet          2162   249.0             120.5   changepoint=0.05 yearly=True
+120          Yo-Chi Mandurah  servings           prophet           744  2090.0              27.2   changepoint=0.05 yearly=True
+121          Yo-Chi Mandurah    retail           prophet           322    54.0              90.2  changepoint=0.03 yearly=False
+122          Yo-Chi Mandurah  discount           prophet           744   361.0             113.8   changepoint=0.05 yearly=True
+123             Yo-Chi Manly  servings           prophet           860  3550.0              32.1   changepoint=0.05 yearly=True
+124             Yo-Chi Manly    retail           prophet           273    30.0              72.4  changepoint=0.03 yearly=False
+125             Yo-Chi Manly  discount           prophet           860   392.0             123.8   changepoint=0.05 yearly=True
+126        Yo-Chi Mt Gravatt  servings           prophet          1038  2823.0              23.3   changepoint=0.05 yearly=True
+127        Yo-Chi Mt Gravatt    retail           prophet           342    69.0              91.7  changepoint=0.03 yearly=False
+128        Yo-Chi Mt Gravatt  discount           prophet          1038   396.0              97.1   changepoint=0.05 yearly=True
+129           Yo-Chi Newtown  servings           prophet          1084  1792.0              16.3   changepoint=0.05 yearly=True
+130           Yo-Chi Newtown    retail           prophet           361    50.0              52.0  changepoint=0.03 yearly=False
+131           Yo-Chi Newtown  discount           prophet          1084   390.0             116.3   changepoint=0.05 yearly=True
+132             Yo-Chi Noosa  servings  cluster-fallback             0     NaN               NaN   cluster=SUNSHINE baseline=$0
+133             Yo-Chi Noosa    retail  cluster-fallback             0     NaN               NaN   cluster=SUNSHINE baseline=$0
+134             Yo-Chi Noosa  discount  cluster-fallback             0     NaN               NaN   cluster=SUNSHINE baseline=$0
+135           Yo-Chi Norwood  servings  cluster-fallback             0     NaN               NaN     cluster=ADEL 1 baseline=$0
+136           Yo-Chi Norwood    retail  cluster-fallback             0     NaN               NaN     cluster=ADEL 1 baseline=$0
+137           Yo-Chi Norwood  discount  cluster-fallback             0     NaN               NaN     cluster=ADEL 1 baseline=$0
+138        Yo-Chi Paddington  servings  cluster-fallback             0     NaN               NaN    cluster=BRIS baseline=$7562
+139        Yo-Chi Paddington    retail  cluster-fallback             0     NaN               NaN      cluster=BRIS baseline=$35
+140        Yo-Chi Paddington  discount  cluster-fallback             0     NaN               NaN     cluster=BRIS baseline=$295
+141           Yo-Chi Penrith  servings  cluster-fallback             0     NaN               NaN     cluster=SYD baseline=$9961
+142           Yo-Chi Penrith    retail  cluster-fallback             0     NaN               NaN       cluster=SYD baseline=$48
+143           Yo-Chi Penrith  discount  cluster-fallback             0     NaN               NaN      cluster=SYD baseline=$400
+144          Yo-Chi Prospect  servings  cluster-fallback             0     NaN               NaN     cluster=ADEL 1 baseline=$0
+145          Yo-Chi Prospect    retail  cluster-fallback             0     NaN               NaN     cluster=ADEL 1 baseline=$0
+146          Yo-Chi Prospect  discount  cluster-fallback             0     NaN               NaN     cluster=ADEL 1 baseline=$0
+147                Yo-Chi QV  servings  cluster-fallback             0     NaN               NaN  cluster=MEL 4 baseline=$15932
+148                Yo-Chi QV    retail  cluster-fallback             0     NaN               NaN    cluster=MEL 4 baseline=$100
+149                Yo-Chi QV  discount  cluster-fallback             0     NaN               NaN    cluster=MEL 4 baseline=$673
+150          Yo-Chi Randwick  servings  cluster-fallback             0     NaN               NaN   cluster=SYD 1 baseline=$9159
+151          Yo-Chi Randwick    retail  cluster-fallback             0     NaN               NaN     cluster=SYD 1 baseline=$39
+152          Yo-Chi Randwick  discount  cluster-fallback             0     NaN               NaN    cluster=SYD 1 baseline=$347
+153            Yo-Chi Robina  servings  cluster-fallback             0     NaN               NaN      cluster=GC baseline=$9348
+154            Yo-Chi Robina    retail  cluster-fallback             0     NaN               NaN        cluster=GC baseline=$30
+155            Yo-Chi Robina  discount  cluster-fallback             0     NaN               NaN       cluster=GC baseline=$389
+156        Yo-Chi Rouse Hill  servings  cluster-fallback             0     NaN               NaN   cluster=SYD 2 baseline=$5427
+157        Yo-Chi Rouse Hill    retail  cluster-fallback             0     NaN               NaN     cluster=SYD 2 baseline=$28
+158        Yo-Chi Rouse Hill  discount  cluster-fallback             0     NaN               NaN    cluster=SYD 2 baseline=$278
+159         Yo-Chi Semaphore  servings  cluster-fallback             0     NaN               NaN  cluster=ADEL 2 baseline=$7790
+160         Yo-Chi Semaphore    retail  cluster-fallback             0     NaN               NaN    cluster=ADEL 2 baseline=$44
+161         Yo-Chi Semaphore  discount  cluster-fallback             0     NaN               NaN   cluster=ADEL 2 baseline=$445
+162       Yo-Chi South Perth  servings  cluster-fallback             0     NaN               NaN   cluster=PERTH baseline=$9249
+163       Yo-Chi South Perth    retail  cluster-fallback             0     NaN               NaN     cluster=PERTH baseline=$51
+164       Yo-Chi South Perth  discount  cluster-fallback             0     NaN               NaN    cluster=PERTH baseline=$476
+165         Yo-Chi Southbank  servings  cluster-fallback             0     NaN               NaN    cluster=BRIS baseline=$7562
+166         Yo-Chi Southbank    retail  cluster-fallback             0     NaN               NaN      cluster=BRIS baseline=$35
+167         Yo-Chi Southbank  discount  cluster-fallback             0     NaN               NaN     cluster=BRIS baseline=$295
+168         Yo-Chi Southland  servings  cluster-fallback             0     NaN               NaN   cluster=MEL 1 baseline=$6876
+169         Yo-Chi Southland    retail  cluster-fallback             0     NaN               NaN     cluster=MEL 1 baseline=$44
+170         Yo-Chi Southland  discount  cluster-fallback             0     NaN               NaN    cluster=MEL 1 baseline=$369
+171    Yo-Chi Sunshine Plaza  servings  cluster-fallback             0     NaN               NaN   cluster=SUNSHINE baseline=$0
+172    Yo-Chi Sunshine Plaza    retail  cluster-fallback             0     NaN               NaN   cluster=SUNSHINE baseline=$0
+173    Yo-Chi Sunshine Plaza  discount  cluster-fallback             0     NaN               NaN   cluster=SUNSHINE baseline=$0
+174       Yo-Chi Surry Hills  servings  cluster-fallback             0     NaN               NaN   cluster=SYD 1 baseline=$9159
+175       Yo-Chi Surry Hills    retail  cluster-fallback             0     NaN               NaN     cluster=SYD 1 baseline=$39
+176       Yo-Chi Surry Hills  discount  cluster-fallback             0     NaN               NaN    cluster=SYD 1 baseline=$347
+177    Yo-Chi Tea Tree Plaza  servings  cluster-fallback             0     NaN               NaN     cluster=ADEL 1 baseline=$0
+178    Yo-Chi Tea Tree Plaza    retail  cluster-fallback             0     NaN               NaN     cluster=ADEL 1 baseline=$0
+179    Yo-Chi Tea Tree Plaza  discount  cluster-fallback             0     NaN               NaN     cluster=ADEL 1 baseline=$0
+180          Yo-Chi Top Ryde  servings  cluster-fallback             0     NaN               NaN   cluster=SYD 2 baseline=$5427
+181          Yo-Chi Top Ryde    retail  cluster-fallback             0     NaN               NaN     cluster=SYD 2 baseline=$28
+182          Yo-Chi Top Ryde  discount  cluster-fallback             0     NaN               NaN    cluster=SYD 2 baseline=$278
+183          Yo-Chi Vic Park  servings  cluster-fallback             0     NaN               NaN   cluster=PERTH baseline=$9249
+184          Yo-Chi Vic Park    retail  cluster-fallback             0     NaN               NaN     cluster=PERTH baseline=$51
+185          Yo-Chi Vic Park  discount  cluster-fallback             0     NaN               NaN    cluster=PERTH baseline=$476
+186          Yo-Chi West End  servings  cluster-fallback             0     NaN               NaN    cluster=BRIS baseline=$7562
+187          Yo-Chi West End    retail  cluster-fallback             0     NaN               NaN      cluster=BRIS baseline=$35
+188          Yo-Chi West End  discount  cluster-fallback             0     NaN               NaN     cluster=BRIS baseline=$295
+189     Yo-Chi Whitford City  servings  cluster-fallback             0     NaN               NaN   cluster=PERTH baseline=$9249
+190     Yo-Chi Whitford City    retail  cluster-fallback             0     NaN               NaN     cluster=PERTH baseline=$51
+191     Yo-Chi Whitford City  discount  cluster-fallback             0     NaN               NaN    cluster=PERTH baseline=$476
+192           Yo-Chi Windsor  servings  cluster-fallback             0     NaN               NaN     cluster=MEL baseline=$7585
+193           Yo-Chi Windsor    retail  cluster-fallback             0     NaN               NaN       cluster=MEL baseline=$33
+194           Yo-Chi Windsor  discount  cluster-fallback             0     NaN               NaN      cluster=MEL baseline=$331

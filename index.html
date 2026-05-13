@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frozen Yoghurt QSR Budget Model</title>
-    <link rel="stylesheet" href="css/styles.css?v=20260513-signs-cogs">
+    <link rel="stylesheet" href="css/styles.css?v=20260513-prophet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -129,6 +129,17 @@
                         <span>Drop .xlsx or click to upload</span>
                     </div>
                     <div class="upload-status" id="status-other_pnl"></div>
+                </div>
+
+                <div class="upload-card" data-template="prophet_forecast">
+                    <div class="upload-icon">🔮</div>
+                    <h3>9. Prophet Forecast (Optional)</h3>
+                    <p>Pre-computed daily forecast (Servings/Retail/POS Discounts). Overrides API call.</p>
+                    <div class="drop-zone" id="drop-prophet_forecast">
+                        <input type="file" accept=".xlsx,.xls" data-template="prophet_forecast">
+                        <span>Drop .xlsx or click to upload</span>
+                    </div>
+                    <div class="upload-status" id="status-prophet_forecast"></div>
                 </div>
 
                 <div class="upload-card action-card">
@@ -459,20 +470,20 @@
         <span id="calc-status"></span>
     </footer>
 
-    <script src="js/config.js?v=20260513-signs-cogs"></script>
-    <script src="js/calendars.js?v=20260513-signs-cogs"></script>
-    <script src="js/supabase-client.js?v=20260513-signs-cogs"></script>
-    <script src="js/excel-parser.js?v=20260513-signs-cogs"></script>
-    <script src="js/weather.js?v=20260513-signs-cogs"></script>
-    <script src="js/engine/sales-forecast.js?v=20260513-signs-cogs"></script>
-    <script src="js/engine/labour-calc.js?v=20260513-signs-cogs"></script>
-    <script src="js/engine/cogs-calc.js?v=20260513-signs-cogs"></script>
-    <script src="js/engine/rent-calc.js?v=20260513-signs-cogs"></script>
-    <script src="js/engine/other-pnl-calc.js?v=20260513-signs-cogs"></script>
-    <script src="js/engine/pnl-builder.js?v=20260513-signs-cogs"></script>
-    <script src="js/sales-analysis.js?v=20260513-signs-cogs"></script>
-    <script src="js/charts.js?v=20260513-signs-cogs"></script>
-    <script src="js/export.js?v=20260513-signs-cogs"></script>
-    <script src="js/app.js?v=20260513-signs-cogs"></script>
+    <script src="js/config.js?v=20260513-prophet"></script>
+    <script src="js/calendars.js?v=20260513-prophet"></script>
+    <script src="js/supabase-client.js?v=20260513-prophet"></script>
+    <script src="js/excel-parser.js?v=20260513-prophet"></script>
+    <script src="js/weather.js?v=20260513-prophet"></script>
+    <script src="js/engine/sales-forecast.js?v=20260513-prophet"></script>
+    <script src="js/engine/labour-calc.js?v=20260513-prophet"></script>
+    <script src="js/engine/cogs-calc.js?v=20260513-prophet"></script>
+    <script src="js/engine/rent-calc.js?v=20260513-prophet"></script>
+    <script src="js/engine/other-pnl-calc.js?v=20260513-prophet"></script>
+    <script src="js/engine/pnl-builder.js?v=20260513-prophet"></script>
+    <script src="js/sales-analysis.js?v=20260513-prophet"></script>
+    <script src="js/charts.js?v=20260513-prophet"></script>
+    <script src="js/export.js?v=20260513-prophet"></script>
+    <script src="js/app.js?v=20260513-prophet"></script>
 </body>
 </html>

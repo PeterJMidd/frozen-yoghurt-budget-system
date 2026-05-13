@@ -11,6 +11,45 @@ const SalesForecastEngine = {
     useApi: false,
     apiCallStats: { batches: 0, retries: 0, failures: 0, lastError: null, totalMs: 0 },
 
+    // Inject a pre-computed Prophet forecast (from 09_Forecast_Daily_Prophet.xlsx)
+    // directly into apiForecasts, bypassing the Render API call. The engine will
+    // then use these values during generateForecasts as if they were API output.
+    loadPrecomputedForecast(records) {
+        if (!Array.isArray(records) || !records.length) return 0;
+        this.apiForecasts = this.apiForecasts || {};
+        this.apiBands = this.apiBands || {};
+        this.apiDiagnostics = this.apiDiagnostics || {};
+        // Also build a per-venue retail share + discount share map so the COGS/discount
+        // splitting in generateForecasts honours the Prophet streams.
+        const totals = {};
+        for (const r of records) {
+            if (!this.apiForecasts[r.venue_key]) this.apiForecasts[r.venue_key] = {};
+            // Use combined Servings + Retail (matches what the Render API would return).
+            this.apiForecasts[r.venue_key][r.forecast_date] = Number(r.gross_sales || 0);
+            if (!totals[r.venue_key]) totals[r.venue_key] = { servings: 0, retail: 0, discount: 0 };
+            totals[r.venue_key].servings += Number(r.gross_sales_servings || 0);
+            totals[r.venue_key].retail   += Number(r.gross_sales_retail || 0);
+            totals[r.venue_key].discount += Number(r.pos_discounts || 0);
+        }
+        for (const [vk, t] of Object.entries(totals)) {
+            const rev = t.servings + t.retail;
+            if (rev > 0) {
+                // Override the historical share with the Prophet-forecast share (forward-looking).
+                this.retailShareByVenue[vk] = Math.max(0, Math.min(0.5, t.retail / rev));
+            }
+            if (t.servings > 0) {
+                this.posDiscountShareByVenue[vk] = Math.max(0, Math.min(0.30, t.discount / t.servings));
+            }
+            this.apiDiagnostics[vk] = {
+                model: 'Prophet (precomputed)', rmse: null, cv: null, warnings: [], historyDays: null
+            };
+        }
+        this.useApi = true;
+        this.apiCallStats = { batches: 0, retries: 0, failures: 0, lastError: null, totalMs: 0,
+                               precomputed: Object.keys(this.apiForecasts).length };
+        return Object.keys(this.apiForecasts).length;
+    },
+
     // Parser now emits one record per (venue, date) with stream amounts as fields.
     // This helper computes per-venue retail share AND per-venue POS discount share.
     // Returns { records, retailShareByVenue, posDiscountShareByVenue }.

@@ -578,6 +578,78 @@ const ExcelParser = {
         return { records, errors, clamps };
     },
 
+    // 9. Optional: Pre-computed Prophet forecast (overrides API call).
+    // Same shape as Sales History: 'Servings', 'Retail', 'POS Discounts' sheets,
+    // rows=venues, columns=dates (forecast period — typically May 2026 → Jun 2027).
+    // Output records per (venue, date): one with combined gross_sales for engine
+    // injection plus per-stream amounts.
+    parseProphetForecast(wb) {
+        const errors = [];
+        const records = [];
+        const findSheet = (name) => wb.SheetNames.find(s => s.trim().toLowerCase() === name);
+        const servSheet = findSheet('servings');
+        const retailSheet = findSheet('retail');
+        const discSheet = findSheet('pos discounts') || findSheet('discounts');
+
+        const byKey = new Map();
+        const ensure = (venueName, venueKey, dateStr) => {
+            const k = `${venueKey}|${dateStr}`;
+            let cur = byKey.get(k);
+            if (!cur) {
+                cur = {
+                    venue_name: venueName, venue_key: venueKey, forecast_date: dateStr,
+                    gross_sales: 0, gross_sales_servings: 0, gross_sales_retail: 0, pos_discounts: 0
+                };
+                byKey.set(k, cur);
+            }
+            return cur;
+        };
+
+        const FIELD = { servings: 'gross_sales_servings', retail: 'gross_sales_retail', discount: 'pos_discounts' };
+        const sheets = [];
+        if (servSheet)   sheets.push({ name: servSheet, kind: 'servings' });
+        if (retailSheet) sheets.push({ name: retailSheet, kind: 'retail' });
+        if (discSheet)   sheets.push({ name: discSheet, kind: 'discount' });
+        if (!sheets.length) { errors.push('No Prophet forecast sheets found'); return { records, errors }; }
+
+        for (const { name, kind } of sheets) {
+            const ws = wb.Sheets[name];
+            const data = XLSX.utils.sheet_to_json(ws, { header: 1, cellDates: true });
+            if (data.length < 2) continue;
+            const headers = data[0];
+            const dateColumns = [];
+            for (let c = 1; c < headers.length; c++) {
+                const dateStr = this.formatDate(headers[c]);
+                if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                    dateColumns.push({ col: c, date: dateStr });
+                }
+            }
+            const field = FIELD[kind];
+            for (let r = 1; r < data.length; r++) {
+                const row = data[r];
+                const venueName = String(row[0] || '').trim();
+                if (!venueName || this.isExcludedVenueName(venueName)) continue;
+                const venueKey = this.normaliseVenueName(venueName);
+                for (const dc of dateColumns) {
+                    const v = Number(row[dc.col]);
+                    if (isNaN(v)) continue;
+                    const rec = ensure(venueName, venueKey, dc.date);
+                    rec[field] += v;
+                    if (kind !== 'discount') rec.gross_sales += v;
+                }
+            }
+        }
+        const out = [...byKey.values()].map(r => ({
+            ...r,
+            gross_sales: Math.round(r.gross_sales * 100) / 100,
+            gross_sales_servings: Math.round(r.gross_sales_servings * 100) / 100,
+            gross_sales_retail: Math.round(r.gross_sales_retail * 100) / 100,
+            pos_discounts: Math.round(r.pos_discounts * 100) / 100,
+            net_servings: Math.round((r.gross_sales_servings - r.pos_discounts) * 100) / 100
+        }));
+        return { records: out, errors };
+    },
+
     parseOtherPnl(wb) {
         const rows = this.sheetToRows(wb, 'Assumptions') || this.sheetToRows(wb);
         const errors = [];

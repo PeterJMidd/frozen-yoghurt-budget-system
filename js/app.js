@@ -43,7 +43,8 @@ const App = {
             labour: ExcelParser.parseLabour.bind(ExcelParser),
             cogs: ExcelParser.parseCogs.bind(ExcelParser),
             rent: ExcelParser.parseRent.bind(ExcelParser),
-            other_pnl: ExcelParser.parseOtherPnl.bind(ExcelParser)
+            other_pnl: ExcelParser.parseOtherPnl.bind(ExcelParser),
+            prophet_forecast: ExcelParser.parseProphetForecast.bind(ExcelParser)
         };
 
         for (const [key, parser] of Object.entries(templates)) {
@@ -291,9 +292,20 @@ const App = {
                 WeatherEngine.buildTempBandIndices(salesData.records, venueData.venues);
             }
 
-            // Call your existing Render API for Prophet/SARIMA forecasts
+            // If user uploaded a pre-computed Prophet forecast, use it directly and skip the API.
+            const prophetUpload = ExcelParser.uploads.prophet_forecast;
+            if (prophetUpload?.records?.length) {
+                fill.style.width = '35%';
+                text.textContent = 'Loading pre-computed Prophet forecast...';
+                const n = SalesForecastEngine.loadPrecomputedForecast(prophetUpload.records);
+                fill.style.width = '60%';
+                text.textContent = `Loaded Prophet forecast for ${n} venues (API call skipped).`;
+            }
+
+            // Call your existing Render API for Prophet/SARIMA forecasts (only if no precomputed)
             const apiUrl = document.getElementById('api-url').value.trim();
-            const useApi = document.getElementById('use-api-forecast').checked && apiUrl;
+            const useApi = !prophetUpload?.records?.length
+                && document.getElementById('use-api-forecast').checked && apiUrl;
             if (useApi) {
                 CONFIG.FORECAST_API_URL = apiUrl;
                 localStorage.setItem('api_url', apiUrl);
