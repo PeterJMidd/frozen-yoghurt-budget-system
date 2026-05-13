@@ -252,16 +252,46 @@ const PnlBuilder = {
         const budget = this.getPnlTable(venueKey, 'annual');
         const priorData = this.getPriorAnnualTotals(venueKey);
 
-        return budget.rows.map(row => ({
-            label: row.label,
-            key: row.key,
-            type: row.type,
-            account_category: row.account_category,
-            budget: row.total,
-            prior: priorData[row.key] || 0,
-            variance: row.total - (priorData[row.key] || 0),
-            variancePct: priorData[row.key] ? ((row.total - priorData[row.key]) / Math.abs(priorData[row.key])) * 100 : 0
-        }));
+        return budget.rows.map(row => {
+            const rawBudget = row.total || 0;
+            const rawPrior  = priorData[row.key] || 0;
+            // Sign each side based on the line item's nature so "favourable" lands as a
+            // positive variance for income AND for cost-reductions.
+            const sign = this._displaySign(row);
+            const sBudget = sign * Math.abs(rawBudget);
+            const sPrior  = sign * Math.abs(rawPrior);
+            const variance = sBudget - sPrior;
+            return {
+                label: row.label,
+                key: row.key,
+                type: row.type,
+                account_category: row.account_category,
+                budget: sBudget,
+                prior: sPrior,
+                variance,
+                variancePct: sPrior ? (variance / Math.abs(sPrior)) * 100 : 0
+            };
+        });
+    },
+
+    // Display sign: +1 = income/revenue/contribution (positive on screen),
+    //               -1 = cost (negative on screen).
+    _displaySign(item) {
+        const key = String(item.key || '').toLowerCase();
+        const type = String(item.type || '').toLowerCase();
+        // Revenue + revenue-side subtotals always positive
+        if (['gross_sales', 'net_sales', 'net_sales_servings', 'net_sales_retail',
+             'gross_profit', 'venue_contribution'].includes(key)) return +1;
+        // Other income / contra-revenue accounts: positive
+        if (type === 'other_income' || type.includes('revenue') || type.includes('income')) return +1;
+        // Discounts: negative (contra-revenue, shown as a deduction)
+        if (key === 'cogs_discounts' || type === 'discount') return -1;
+        // other_pnl_total is signed (income−expense net): keep sign of the value
+        if (key === 'other_pnl_total') return +1;   // we'll let the value's own sign show
+        // Costs
+        if (type.includes('cogs') || type.includes('labour') || type.includes('occupancy')
+            || type.includes('expense') || type === 'other_pnl' || type === 'subtotal') return -1;
+        return +1;
     },
 
     getPriorAnnualTotals(venueKey) {

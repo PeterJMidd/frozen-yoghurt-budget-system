@@ -629,10 +629,14 @@ const App = {
         thead.innerHTML = headerHtml;
 
         tbody.innerHTML = '';
+        // Accounting format: positive normal, negative wrapped in parens. Big numbers in K/M.
         const fmt = (v) => {
-            if (Math.abs(v) >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M';
-            if (Math.abs(v) >= 1000) return '$' + (v / 1000).toFixed(0) + 'K';
-            return '$' + Math.round(v).toLocaleString();
+            const av = Math.abs(v);
+            let s;
+            if (av >= 1000000) s = '$' + (av / 1000000).toFixed(1) + 'M';
+            else if (av >= 1000) s = '$' + (av / 1000).toFixed(0) + 'K';
+            else s = '$' + Math.round(av).toLocaleString();
+            return v < 0 ? `(${s})` : s;
         };
 
         for (const row of pnl.rows) {
@@ -664,19 +668,30 @@ const App = {
         thead.innerHTML = '<tr><th>Line Item</th><th class="number">Budget</th><th class="number">Prior Year Annualised</th><th class="number">Variance $</th><th class="number">Variance %</th></tr>';
         tbody.innerHTML = '';
 
-        const fmt = (v) => '$' + Math.round(v).toLocaleString();
+        // Accounting-style format: positive as "$1,234", negative as "($1,234)".
+        const fmt = (v) => {
+            const n = Math.round(v || 0);
+            if (n < 0) return `($${Math.abs(n).toLocaleString()})`;
+            return `$${n.toLocaleString()}`;
+        };
+        const fmtPct = (v) => {
+            if (v == null || !Number.isFinite(v)) return '-';
+            const n = v.toFixed(1);
+            return v < 0 ? `(${Math.abs(v).toFixed(1)}%)` : `${n}%`;
+        };
 
         for (const row of variance) {
             const tr = document.createElement('tr');
             if (row.type === 'subtotal' || row.type === 'total') tr.className = 'line-item-subtotal';
 
+            // Variance sign: positive = favourable (green), negative = unfavourable (red)
             const varClass = row.variance >= 0 ? 'positive' : 'negative';
             tr.innerHTML = `
                 <td>${row.label}</td>
                 <td class="number">${fmt(row.budget)}</td>
                 <td class="number">${fmt(row.prior)}</td>
                 <td class="number ${varClass}">${fmt(row.variance)}</td>
-                <td class="number ${varClass}">${row.variancePct.toFixed(1)}%</td>
+                <td class="number ${varClass}">${fmtPct(row.variancePct)}</td>
             `;
             tbody.appendChild(tr);
         }
