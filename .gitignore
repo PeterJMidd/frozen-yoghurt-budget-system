@@ -1,3 +1,18 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# Local Claude tooling
+.claude/
+
+# Excel lock / temp files
+~$*.xlsx
+~$*.xls
+~$*.docx
+
+# Source data files (kept locally, not part of the app distribution)
+templates/D03_Location_*.xlsx
+templates/FY_2026 - Consolidated Sales + ATV De-linked*.xlsx
+templates/Rental information for each property.xlsx
+
+node_modules/
