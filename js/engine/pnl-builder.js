@@ -394,12 +394,19 @@ const PnlBuilder = {
         for (const [key, target] of this._priorLineItemIndex.contains) {
             if (norm.includes(key) || key.includes(norm)) return target;
         }
+        // Numeric account-code match: extract first 4-6 digit run and look it up.
+        // Handles labels like "Bank Fees (62001)" vs budget label "62001 - Bank Fees".
+        const codeMatch = String(lineItem).match(/(\d{3,6})/);
+        if (codeMatch && this._priorLineItemIndex.byCode.has(codeMatch[1])) {
+            return this._priorLineItemIndex.byCode.get(codeMatch[1]);
+        }
         return null;
     },
 
     _buildPriorLineItemIndex() {
         const exact = new Map();
         const contains = [];
+        const byCode = new Map();   // numeric Xero account code -> target budget key
         const addPair = (alias, target) => {
             const n = this._normaliseLineItemKey(alias);
             if (n && !exact.has(n)) exact.set(n, target);
@@ -433,13 +440,17 @@ const PnlBuilder = {
             contains.push([key.replace(/_/g, ' '), key]);
         }
 
-        // Add dynamic Other P&L items as exact matches by their label / key
+        // Add dynamic Other P&L items as exact matches by their label / key,
+        // PLUS index the bare numeric account code (e.g. "62001") so we can match
+        // prior-PNL labels written as "Bank Fees (62001)" by extracting the code.
         for (const item of this.otherPnlLineItems || []) {
             addPair(item.label, item.key);
             addPair(item.key, item.key);
             if (item.account_code) addPair(item.account_code, item.key);
+            const codeMatch = String(item.account_code || item.key || item.label || '').match(/(\d{3,6})/);
+            if (codeMatch && !byCode.has(codeMatch[1])) byCode.set(codeMatch[1], item.key);
         }
-        this._priorLineItemIndex = { exact, contains };
+        this._priorLineItemIndex = { exact, contains, byCode };
     },
 
     setPriorPnl(priorPnlRecords) {
