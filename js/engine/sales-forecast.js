@@ -6,35 +6,40 @@ const SalesForecastEngine = {
     apiBands: {},        // { venueKey: { date: { lower, upper } } }
     apiDiagnostics: {},  // { venueKey: { model, rmse, cv, warnings, historyDays } }
     salesHistoryLookup: {},
-    retailShareByVenue: {},   // venueKey -> 0..1 (retail / (retail+servings))
+    retailShareByVenue: {},      // venueKey -> 0..1 (retail / (retail+servings))
+    posDiscountShareByVenue: {}, // venueKey -> 0..0.3 (pos_discount / servings)
     useApi: false,
     apiCallStats: { batches: 0, retries: 0, failures: 0, lastError: null, totalMs: 0 },
 
     // Parser now emits one record per (venue, date) with stream amounts as fields.
-    // This helper just computes the per-venue retail share for forecasting splits.
-    // Returns { records, retailShareByVenue } where records is the input as-is.
+    // This helper computes per-venue retail share AND per-venue POS discount share.
+    // Returns { records, retailShareByVenue, posDiscountShareByVenue }.
     collapseStreams(salesHistory) {
-        const streamTotals = {};
+        const totals = {};
         for (const s of salesHistory) {
-            if (!streamTotals[s.venue_key]) streamTotals[s.venue_key] = { servings: 0, retail: 0 };
-            streamTotals[s.venue_key].servings += Number(s.gross_sales_servings ?? s.gross_sales ?? 0);
-            streamTotals[s.venue_key].retail   += Number(s.gross_sales_retail ?? 0);
+            if (!totals[s.venue_key]) totals[s.venue_key] = { servings: 0, retail: 0, discount: 0 };
+            totals[s.venue_key].servings += Number(s.gross_sales_servings ?? s.gross_sales ?? 0);
+            totals[s.venue_key].retail   += Number(s.gross_sales_retail ?? 0);
+            totals[s.venue_key].discount += Number(s.pos_discounts ?? 0);
         }
         const retailShare = {};
-        for (const [vk, t] of Object.entries(streamTotals)) {
-            const total = t.servings + t.retail;
-            retailShare[vk] = total > 0 ? Math.max(0, Math.min(0.5, t.retail / total)) : 0;
+        const discShare = {};
+        for (const [vk, t] of Object.entries(totals)) {
+            const revenue = t.servings + t.retail;
+            retailShare[vk] = revenue > 0 ? Math.max(0, Math.min(0.5, t.retail / revenue)) : 0;
+            discShare[vk]   = t.servings > 0 ? Math.max(0, Math.min(0.30, t.discount / t.servings)) : 0;
         }
-        return { records: salesHistory, retailShareByVenue: retailShare };
+        return { records: salesHistory, retailShareByVenue: retailShare, posDiscountShareByVenue: discShare };
     },
 
     buildSeasonality(salesHistory, venueDetails) {
         const venueMap = {};
         for (const v of venueDetails) venueMap[v.venue_key] = v;
 
-        // Collapse two-stream history into combined-day records + record retail share per venue.
+        // Collapse multi-stream history into combined-day records + record per-venue shares.
         const collapsed = this.collapseStreams(salesHistory);
         this.retailShareByVenue = collapsed.retailShareByVenue;
+        this.posDiscountShareByVenue = collapsed.posDiscountShareByVenue || {};
         const flatHistory = collapsed.records;
 
         const grouped = {};
@@ -446,6 +451,14 @@ const SalesForecastEngine = {
 
                 const apiBand = this.apiBands[venue.venue_key]?.[dateStr] || null;
 
+                // Estimate POS discount $ from historical share of servings (defaults to 0 if
+                // the sales-history file doesn't have a POS Discounts sheet).
+                const discShare = Number(this.posDiscountShareByVenue?.[venue.venue_key]
+                    ?? (similarVenueKey ? this.posDiscountShareByVenue?.[similarVenueKey] : 0)
+                    ?? 0);
+                const posDiscountAmount = Math.round(netSalesServings * discShare * 100) / 100;
+                const netServingsLessDiscounts = Math.round((netSalesServings - posDiscountAmount) * 100) / 100;
+
                 this.dailyForecasts.push({
                     venue_key: venue.venue_key,
                     venue_name: venue.venue_name,
@@ -462,7 +475,10 @@ const SalesForecastEngine = {
                     gross_sales_retail: grossSalesRetail,
                     net_sales_servings: netSalesServings,
                     net_sales_retail: netSalesRetail,
+                    pos_discounts: posDiscountAmount,
+                    net_servings: netServingsLessDiscounts,    // Net Servings = Servings − POS Discounts
                     retail_share: retailShare,
+                    pos_discount_share: discShare,
                     forecast_lower_90: apiBand ? Math.max(0, Math.round(apiBand.lower * 100) / 100) : null,
                     forecast_upper_90: apiBand ? Math.max(0, Math.round(apiBand.upper * 100) / 100) : null,
                     forecast_transactions: transactions,

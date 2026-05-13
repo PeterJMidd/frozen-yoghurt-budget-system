@@ -117,17 +117,17 @@ const ExcelParser = {
 
     // 1. Sales History: rows=venues, columns=dates.
     //
-    // Supports two layouts:
+    // Supports sheet layouts:
     //   (a) Single-sheet legacy: combined revenue per date (treated as servings)
-    //   (b) Two-sheet split: 'Servings' + 'Retail' sheets, each same shape
+    //   (b) Two-sheet: 'Servings' + 'Retail'
+    //   (c) Three-sheet: 'Servings' + 'Retail' + 'POS Discounts' (preferred — enables
+    //       the Net Servings stream filter = Servings − POS Discounts).
     //
-    // Output: ONE record per (venue, date) with three amount fields:
-    //   gross_sales          = servings + retail (back-compat; all consumers see this)
-    //   gross_sales_servings = servings stream alone
-    //   gross_sales_retail   = retail stream alone
-    //
-    // This avoids duplicate (venue, date) rows that would break downstream
-    // aggregators that simply iterate the array.
+    // Output: ONE record per (venue, date) with four amount fields:
+    //   gross_sales          = servings + retail (back-compat — what consumers see by default)
+    //   gross_sales_servings = servings stream alone (Y1YS)
+    //   gross_sales_retail   = retail stream alone (Y1RS)
+    //   pos_discounts        = POS discount giveback (Y1POSD; positive number)
     parseSalesHistory(wb) {
         const errors = [];
         let firstDate = null;
@@ -136,11 +136,13 @@ const ExcelParser = {
         const findSheet = (name) => wb.SheetNames.find(s => s.trim().toLowerCase() === name);
         const servSheet = findSheet('servings') || findSheet('yogurt') || findSheet('yogurt sales');
         const retailSheet = findSheet('retail') || findSheet('retail sales');
+        const discSheet = findSheet('pos discounts') || findSheet('discounts');
 
         const sheetMap = [];
-        if (servSheet) sheetMap.push({ name: servSheet, stream: 'servings' });
-        if (retailSheet) sheetMap.push({ name: retailSheet, stream: 'retail' });
-        if (!sheetMap.length) sheetMap.push({ name: wb.SheetNames[0], stream: 'servings' });
+        if (servSheet) sheetMap.push({ name: servSheet, kind: 'servings' });
+        if (retailSheet) sheetMap.push({ name: retailSheet, kind: 'retail' });
+        if (discSheet) sheetMap.push({ name: discSheet, kind: 'discount' });
+        if (!sheetMap.length) sheetMap.push({ name: wb.SheetNames[0], kind: 'servings' });
 
         // Accumulate per (venue, date) into a map keyed by `venueKey|date`.
         const byKey = new Map();
@@ -150,14 +152,21 @@ const ExcelParser = {
             if (!cur) {
                 cur = {
                     venue_name: venueName, venue_key: venueKey, sale_date: dateStr,
-                    gross_sales: 0, gross_sales_servings: 0, gross_sales_retail: 0
+                    gross_sales: 0, gross_sales_servings: 0, gross_sales_retail: 0,
+                    pos_discounts: 0
                 };
                 byKey.set(k, cur);
             }
             return cur;
         };
 
-        for (const { name, stream } of sheetMap) {
+        const FIELD_BY_KIND = {
+            servings: 'gross_sales_servings',
+            retail:   'gross_sales_retail',
+            discount: 'pos_discounts'
+        };
+
+        for (const { name, kind } of sheetMap) {
             const ws = wb.Sheets[name];
             if (!ws) continue;
             const data = XLSX.utils.sheet_to_json(ws, { header: 1, cellDates: true });
@@ -181,7 +190,7 @@ const ExcelParser = {
             const last = dateColumns[dateColumns.length - 1].date;
             if (!lastDate || last > lastDate) lastDate = last;
 
-            const streamField = stream === 'retail' ? 'gross_sales_retail' : 'gross_sales_servings';
+            const field = FIELD_BY_KIND[kind];
             for (let r = 1; r < data.length; r++) {
                 const row = data[r];
                 const venueName = String(row[0] || '').trim();
@@ -191,28 +200,32 @@ const ExcelParser = {
                 for (const dc of dateColumns) {
                     const val = row[dc.col];
                     if (val == null || val === '') continue;
-                    const sales = Number(val);
-                    if (isNaN(sales)) continue;
+                    const v = Number(val);
+                    if (isNaN(v)) continue;
                     const rec = ensure(venueName, venueKey, dc.date);
-                    rec[streamField] += sales;
-                    rec.gross_sales += sales;
+                    rec[field] += v;
+                    // gross_sales only counts revenue streams (servings + retail), NOT the
+                    // discount giveback (that's a cost line, separately tracked).
+                    if (kind !== 'discount') rec.gross_sales += v;
                 }
             }
         }
 
-        // Round once at the end
         const records = [...byKey.values()].map(r => ({
             ...r,
             gross_sales:           Math.round(r.gross_sales * 100) / 100,
             gross_sales_servings:  Math.round(r.gross_sales_servings * 100) / 100,
-            gross_sales_retail:    Math.round(r.gross_sales_retail * 100) / 100
+            gross_sales_retail:    Math.round(r.gross_sales_retail * 100) / 100,
+            pos_discounts:         Math.round(r.pos_discounts * 100) / 100,
+            // Convenience: Net Servings = Servings − POS Discounts.
+            net_servings:          Math.round((r.gross_sales_servings - r.pos_discounts) * 100) / 100
         }));
 
         return {
             records,
             errors,
             dateRange: { start: firstDate, end: lastDate },
-            streams: [...new Set(sheetMap.map(s => s.stream))]
+            streams: [...new Set(sheetMap.map(s => s.kind))]
         };
     },
 

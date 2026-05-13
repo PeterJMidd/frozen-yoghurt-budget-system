@@ -142,15 +142,54 @@ const SalesAnalysisEngine = {
         });
     },
 
+    // Pull the right amount field from a sales-history record given the active
+    // stream filter on PnlBuilder.
+    streamAmount(record) {
+        const filter = (typeof PnlBuilder !== 'undefined' ? PnlBuilder.streamFilter : 'all') || 'all';
+        if (filter === 'servings')     return Number(record.gross_sales_servings || 0);
+        if (filter === 'retail')       return Number(record.gross_sales_retail || 0);
+        if (filter === 'net_servings') return Number(record.net_servings
+                                          ?? ((record.gross_sales_servings || 0) - (record.pos_discounts || 0)));
+        // 'all' / 'both' / default
+        return Number(record.gross_sales || 0);
+    },
+
+    // Same logic for forecast (PnlBuilder.dailyResults) rows.
+    streamForecastAmount(forecast) {
+        const filter = (typeof PnlBuilder !== 'undefined' ? PnlBuilder.streamFilter : 'all') || 'all';
+        if (filter === 'servings')     return Number(forecast.net_sales_servings || forecast.gross_sales_servings || forecast.net_sales || 0);
+        if (filter === 'retail')       return Number(forecast.net_sales_retail || forecast.gross_sales_retail || 0);
+        if (filter === 'net_servings') return Number(forecast.net_servings
+                                          ?? ((forecast.net_sales_servings || 0) - (forecast.pos_discounts || 0)));
+        return Number(forecast.net_sales || 0);
+    },
+
     salesHistoryMap() {
-        // Parser now emits one record per (venue, date) with combined gross_sales
-        // (servings + retail), so a simple assign works without losing streams.
+        // Parser emits one record per (venue, date). Pick the amount field that
+        // matches the active stream filter (default = combined gross_sales).
         const map = {};
         for (const row of ExcelParser.uploads.sales_history?.records || []) {
             if (!map[row.venue_key]) map[row.venue_key] = {};
-            map[row.venue_key][row.sale_date] = Number(row.gross_sales || 0);
+            map[row.venue_key][row.sale_date] = this.streamAmount(row);
         }
         return map;
+    },
+
+    // Scale a combined daily total down to the active stream share. The Prophet API
+    // and local-fallback estimators return combined daily sales; for stream-filtered
+    // views we approximate using the venue's historical retail share + discount %.
+    streamScale(venueKey) {
+        const filter = (typeof PnlBuilder !== 'undefined' ? PnlBuilder.streamFilter : 'all') || 'all';
+        if (filter === 'all') return 1.0;
+        const retailShare = Number(SalesForecastEngine.retailShareByVenue?.[venueKey] || 0);
+        if (filter === 'retail') return retailShare;
+        if (filter === 'servings') return Math.max(0, 1 - retailShare);
+        if (filter === 'net_servings') {
+            // Subtract estimated POS discount %. Use 5.2% chain average if per-venue unknown.
+            const discPct = Number(SalesForecastEngine.posDiscountShareByVenue?.[venueKey] || 0.052);
+            return Math.max(0, (1 - retailShare) - discPct);
+        }
+        return 1.0;
     },
 
     getComparatorSales(venue, dateStr, salesMap, historyEnd) {
@@ -169,10 +208,11 @@ const SalesAnalysisEngine = {
 
         if (dateStr > this.FY26_END) return { amount: 0, source: 'none' };
 
+        const scale = this.streamScale(venue.venue_key);
         const apiValue = SalesForecastEngine.apiForecasts[venue.venue_key]?.[dateStr];
-        if (apiValue != null) return { amount: Math.max(0, Number(apiValue || 0)), source: 'api' };
+        if (apiValue != null) return { amount: Math.max(0, Number(apiValue || 0)) * scale, source: 'api' };
 
-        return { amount: this.estimateLocalSales(venue, dateStr), source: 'local' };
+        return { amount: this.estimateLocalSales(venue, dateStr) * scale, source: 'local' };
     },
 
     estimateLocalSales(venue, dateStr) {
@@ -271,7 +311,7 @@ const SalesAnalysisEngine = {
                 const venue = venueMap[forecast.venue_key];
                 const group = this.groupLabel(venue, groupBy, monthLabel, clusters);
                 const row = ensure(budgetMonthKey, group);
-                const amount = Number(forecast.net_sales || 0);
+                const amount = this.streamForecastAmount(forecast);
                 row.fy27_forecast_sales += amount;
                 row.fy27_scenario_sales += amount * growthMultiplier;
                 if (this.isLflVenueForComparatorMonth(venue, this.addYears(budgetMonth, -1))) {
