@@ -6,15 +6,47 @@ const SalesForecastEngine = {
     apiBands: {},        // { venueKey: { date: { lower, upper } } }
     apiDiagnostics: {},  // { venueKey: { model, rmse, cv, warnings, historyDays } }
     salesHistoryLookup: {},
+    retailShareByVenue: {},   // venueKey -> 0..1 (retail / (retail+servings))
     useApi: false,
     apiCallStats: { batches: 0, retries: 0, failures: 0, lastError: null, totalMs: 0 },
+
+    // Collapse multi-stream daily history into a single daily record per (venue, date).
+    // Returns { records, retailShareByVenue }.
+    collapseStreams(salesHistory) {
+        const byKey = new Map();
+        const streamTotals = {};   // venueKey -> { servings, retail }
+        for (const s of salesHistory) {
+            const k = `${s.venue_key}|${s.sale_date}`;
+            const cur = byKey.get(k) || {
+                venue_key: s.venue_key, venue_name: s.venue_name,
+                sale_date: s.sale_date, gross_sales: 0
+            };
+            cur.gross_sales += Number(s.gross_sales || 0);
+            byKey.set(k, cur);
+            const stream = String(s.stream || 'servings').toLowerCase();
+            if (!streamTotals[s.venue_key]) streamTotals[s.venue_key] = { servings: 0, retail: 0 };
+            if (stream === 'retail') streamTotals[s.venue_key].retail += Number(s.gross_sales || 0);
+            else streamTotals[s.venue_key].servings += Number(s.gross_sales || 0);
+        }
+        const retailShare = {};
+        for (const [vk, t] of Object.entries(streamTotals)) {
+            const total = t.servings + t.retail;
+            retailShare[vk] = total > 0 ? Math.max(0, Math.min(0.5, t.retail / total)) : 0;
+        }
+        return { records: [...byKey.values()], retailShareByVenue: retailShare };
+    },
 
     buildSeasonality(salesHistory, venueDetails) {
         const venueMap = {};
         for (const v of venueDetails) venueMap[v.venue_key] = v;
 
+        // Collapse two-stream history into combined-day records + record retail share per venue.
+        const collapsed = this.collapseStreams(salesHistory);
+        this.retailShareByVenue = collapsed.retailShareByVenue;
+        const flatHistory = collapsed.records;
+
         const grouped = {};
-        for (const s of salesHistory) {
+        for (const s of flatHistory) {
             if (!grouped[s.venue_key]) grouped[s.venue_key] = [];
             grouped[s.venue_key].push(s);
         }
@@ -393,19 +425,29 @@ const SalesForecastEngine = {
                 forecastSales *= growthMultiplier;
                 forecastSales = Math.max(0, Math.round(forecastSales * 100) / 100);
 
-                // Treat the API/local forecast value as NET sales (POS revenue, post-discount).
-                // Gross-up to compute gross_sales when a discount % is configured for the venue.
+                // Treat the API/local forecast value as combined NET sales across both streams.
+                // Split into Servings vs Retail using each venue's historical share, then
+                // gross-up servings (discounts only apply to servings — retail items are not discounted).
+                const retailShare = Number(this.retailShareByVenue[venue.venue_key]
+                    ?? (similarVenueKey ? this.retailShareByVenue[similarVenueKey] : 0)
+                    ?? 0);
+                const netSalesTotal = forecastSales;
+                const netSalesRetail = Math.round(netSalesTotal * retailShare * 100) / 100;
+                const netSalesServings = Math.round((netSalesTotal - netSalesRetail) * 100) / 100;
+
                 const discountPct = Number(cogsDiscountByVenue[venue.venue_key]
                     ?? (similarVenueKey ? cogsDiscountByVenue[similarVenueKey] : 0)
                     ?? 0);
-                const netSales = forecastSales;
-                const grossSales = discountPct > 0 && discountPct < 1
-                    ? Math.round((netSales / (1 - discountPct)) * 100) / 100
-                    : netSales;
+                const grossSalesServings = discountPct > 0 && discountPct < 1
+                    ? Math.round((netSalesServings / (1 - discountPct)) * 100) / 100
+                    : netSalesServings;
+                const grossSalesRetail = netSalesRetail;   // retail doesn't have a discount line
+                const grossSalesTotal = Math.round((grossSalesServings + grossSalesRetail) * 100) / 100;
 
                 const ticketKey = `${venue.venue_key}_${monthKey}`;
                 const avgTicket = ticketMap[ticketKey] || this.getDefaultTicket(venue.venue_key, avgTicketData);
-                const transactions = avgTicket > 0 ? Math.round(netSales / avgTicket) : 0;
+                // Transactions only count servings (ATV is yogurt-only).
+                const transactions = avgTicket > 0 ? Math.round(netSalesServings / avgTicket) : 0;
 
                 const apiBand = this.apiBands[venue.venue_key]?.[dateStr] || null;
 
@@ -417,8 +459,15 @@ const SalesForecastEngine = {
                     public_holiday_name: publicHolidayName,
                     prior_year_comparable_date: priorComparableDate,
                     prior_comparable_sales: this.getPriorComparableSales(venue, priorComparableDate, similarVenueKey),
-                    gross_sales: grossSales,
-                    net_sales: netSales,
+                    // Combined (back-compat field; engines downstream use this as default)
+                    gross_sales: grossSalesTotal,
+                    net_sales: netSalesTotal,
+                    // Per-stream split (NEW)
+                    gross_sales_servings: grossSalesServings,
+                    gross_sales_retail: grossSalesRetail,
+                    net_sales_servings: netSalesServings,
+                    net_sales_retail: netSalesRetail,
+                    retail_share: retailShare,
                     forecast_lower_90: apiBand ? Math.max(0, Math.round(apiBand.lower * 100) / 100) : null,
                     forecast_upper_90: apiBand ? Math.max(0, Math.round(apiBand.upper * 100) / 100) : null,
                     forecast_transactions: transactions,

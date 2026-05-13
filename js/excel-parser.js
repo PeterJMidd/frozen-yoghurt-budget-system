@@ -115,55 +115,87 @@ const ExcelParser = {
         return XLSX.utils.sheet_to_json(ws, { defval: null });
     },
 
-    // 1. Sales History: rows=venues, columns=dates
+    // 1. Sales History: rows=venues, columns=dates.
+    //
+    // Supports two layouts:
+    //   (a) Single-sheet legacy: combined revenue per date (treated as 'servings' stream)
+    //   (b) Two-sheet split: 'Servings' + 'Retail' sheets, each with same shape
+    //
+    // Output records carry a `stream` field ('servings' | 'retail') and an
+    // aggregated `gross_sales` value PER STREAM. Records for the same
+    // (venue, date) across streams are summed downstream when the user
+    // selects 'both' in the UI.
     parseSalesHistory(wb) {
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(ws, { header: 1, cellDates: true });
         const errors = [];
         const records = [];
+        let firstDate = null;
+        let lastDate = null;
 
-        if (data.length < 2) {
-            errors.push('Sales history sheet must have a header row and at least one venue row');
-            return { records, errors };
+        // Decide which sheets to read. Prefer named 'Servings'/'Retail'; otherwise treat
+        // the first sheet as servings.
+        const sheetMap = [];
+        const findSheet = (name) => wb.SheetNames.find(s => s.trim().toLowerCase() === name);
+        const servSheet = findSheet('servings') || findSheet('yogurt') || findSheet('yogurt sales');
+        const retailSheet = findSheet('retail') || findSheet('retail sales');
+
+        if (servSheet) sheetMap.push({ name: servSheet, stream: 'servings' });
+        if (retailSheet) sheetMap.push({ name: retailSheet, stream: 'retail' });
+        if (!sheetMap.length) {
+            sheetMap.push({ name: wb.SheetNames[0], stream: 'servings' });
         }
 
-        const headers = data[0];
-        const venueCol = 0;
-        const dateColumns = [];
+        for (const { name, stream } of sheetMap) {
+            const ws = wb.Sheets[name];
+            if (!ws) continue;
+            const data = XLSX.utils.sheet_to_json(ws, { header: 1, cellDates: true });
+            if (data.length < 2) {
+                errors.push(`Sheet "${name}": needs a header row and at least one venue row`);
+                continue;
+            }
 
-        for (let c = 1; c < headers.length; c++) {
-            const dateStr = this.formatDate(headers[c]);
-            if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                dateColumns.push({ col: c, date: dateStr });
+            const headers = data[0];
+            const dateColumns = [];
+            for (let c = 1; c < headers.length; c++) {
+                const dateStr = this.formatDate(headers[c]);
+                if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                    dateColumns.push({ col: c, date: dateStr });
+                }
+            }
+            if (!dateColumns.length) {
+                errors.push(`Sheet "${name}": no valid date columns found`);
+                continue;
+            }
+            if (!firstDate || dateColumns[0].date < firstDate) firstDate = dateColumns[0].date;
+            const last = dateColumns[dateColumns.length - 1].date;
+            if (!lastDate || last > lastDate) lastDate = last;
+
+            for (let r = 1; r < data.length; r++) {
+                const row = data[r];
+                const venueName = String(row[0] || '').trim();
+                if (!venueName) continue;
+                if (this.isExcludedVenueName(venueName)) continue;
+                for (const dc of dateColumns) {
+                    const val = row[dc.col];
+                    if (val == null || val === '') continue;
+                    const sales = Number(val);
+                    if (isNaN(sales)) continue;
+                    records.push({
+                        venue_name: venueName,
+                        venue_key: this.normaliseVenueName(venueName),
+                        sale_date: dc.date,
+                        stream,
+                        gross_sales: Math.round(sales * 100) / 100
+                    });
+                }
             }
         }
 
-        if (dateColumns.length === 0) {
-            errors.push('No valid date columns found. Columns should be dates (e.g. 2024-05-01)');
-            return { records, errors };
-        }
-
-        for (let r = 1; r < data.length; r++) {
-            const row = data[r];
-            const venueName = String(row[venueCol] || '').trim();
-            if (!venueName) continue;
-            if (this.isExcludedVenueName(venueName)) continue;
-
-            for (const dc of dateColumns) {
-                const val = row[dc.col];
-                if (val == null || val === '') continue;
-                const sales = Number(val);
-                if (isNaN(sales)) continue;
-                records.push({
-                    venue_name: venueName,
-                    venue_key: this.normaliseVenueName(venueName),
-                    sale_date: dc.date,
-                    gross_sales: Math.round(sales * 100) / 100
-                });
-            }
-        }
-
-        return { records, errors, dateRange: { start: dateColumns[0].date, end: dateColumns[dateColumns.length - 1].date } };
+        return {
+            records,
+            errors,
+            dateRange: { start: firstDate, end: lastDate },
+            streams: [...new Set(sheetMap.map(s => s.stream))]
+        };
     },
 
     // 2. Prior P&L: one sheet per venue, rows=line items, columns=months

@@ -72,12 +72,14 @@ const CONFIG = {
     ],
 
     PNL_LINE_ITEMS: [
+        { key: 'net_sales_servings', label: 'Net Sales - Servings', type: 'revenue', account_category: '1.0 Trade Revenue', stream: 'servings' },
+        { key: 'net_sales_retail', label: 'Net Sales - Retail', type: 'revenue', account_category: '1.0 Trade Revenue', stream: 'retail' },
         { key: 'gross_sales', label: 'Gross Sales', type: 'revenue', account_category: '1.0 Trade Revenue' },
-        { key: 'cogs_discounts', label: 'Discounts', type: 'discount', account_category: '1.0 Trade Revenue' },
+        { key: 'cogs_discounts', label: 'Discounts', type: 'discount', account_category: '1.0 Trade Revenue', stream: 'servings' },
         { key: 'net_sales', label: 'Net Sales', type: 'revenue', account_category: '1.0 Trade Revenue' },
-        { key: 'cogs_food', label: 'COGS - Food', type: 'cogs', account_category: '2.0 Servings Cost' },
-        { key: 'cogs_packaging', label: 'COGS - Packaging', type: 'cogs', account_category: '2.1 Packaging Cost' },
-        { key: 'cogs_retail', label: 'COGS - Retail', type: 'cogs', account_category: '2.3 Retail Costs' },
+        { key: 'cogs_food', label: 'COGS - Food', type: 'cogs', account_category: '2.0 Servings Cost', stream: 'servings' },
+        { key: 'cogs_packaging', label: 'COGS - Packaging', type: 'cogs', account_category: '2.1 Packaging Cost', stream: 'servings' },
+        { key: 'cogs_retail', label: 'COGS - Retail', type: 'cogs', account_category: '2.3 Retail Costs', stream: 'retail' },
         { key: 'cogs_total', label: 'Total COGS', type: 'subtotal', account_category: '2 Cost of Sales' },
         { key: 'gross_profit', label: 'Gross Profit', type: 'subtotal', account_category: 'Gross Profit' },
         { key: 'crew_labour_cost', label: 'Labour - Crew', type: 'labour', account_category: '3.1 Wages & Salaries' },

@@ -1,12 +1,10 @@
 const CogsCalcEngine = {
-    // Discount % is a contra-revenue line:
-    //   gross_sales = forecast / (1 - discount_pct)   [done in SalesForecastEngine]
-    //   cogs_discounts = gross_sales - net_sales      [the giveback amount, displayed but NOT in cogs_total]
-    //   COGS % (food/packaging/retail) apply to NET sales
-    //   cogs_total = food + packaging + retail
-    //   gross_profit = net_sales - cogs_total
-    //
-    // This avoids the prior bug where discounts were both netting revenue AND counted as a cost.
+    // Two-stream COGS model:
+    //   - Food & Packaging %: applied to NET Servings sales (yogurt revenue)
+    //   - Retail COGS %:      applied to NET Retail sales (merchandise revenue)
+    //   - Sale_Discounts %:   applied to NET Servings (discounts only on yogurt POS)
+    //   - cogs_total = food + packaging + retail (excludes the giveback discount)
+    //   - gross_profit = net_sales_total - cogs_total - discount_giveback
     buildVenueDiscountMap(cogsAssumptions) {
         const map = {};
         for (const c of cogsAssumptions || []) {
@@ -27,18 +25,23 @@ const CogsCalcEngine = {
                 (forecast.similar_venue_key ? cogsMap[forecast.similar_venue_key] : null) ||
                 {};
 
-            const net = Number(forecast.net_sales || 0);
-            const gross = Number(forecast.gross_sales || net);
+            const netTotal = Number(forecast.net_sales || 0);
+            const netServings = Number(forecast.net_sales_servings ?? netTotal);
+            const netRetail = Number(forecast.net_sales_retail ?? 0);
+            const grossServings = Number(forecast.gross_sales_servings ?? netServings);
 
-            forecast.cogs_food = Math.round(net * (cogs.food || 0) * 100) / 100;
-            forecast.cogs_packaging = Math.round(net * (cogs.packaging || 0) * 100) / 100;
-            forecast.cogs_retail = Math.round(net * (cogs.retail || 0) * 100) / 100;
-            // Discount is the giveback: gross - net. Shown for transparency. Not added to cogs_total.
-            forecast.cogs_discounts = Math.round((gross - net) * 100) / 100;
+            forecast.cogs_food = Math.round(netServings * (cogs.food || 0) * 100) / 100;
+            forecast.cogs_packaging = Math.round(netServings * (cogs.packaging || 0) * 100) / 100;
+            // Retail COGS applies ONLY to retail sales (e.g. cost of tubs/merch sold)
+            forecast.cogs_retail = Math.round(netRetail * (cogs.retail || 0) * 100) / 100;
+            // Discount giveback = gross_servings - net_servings (informational; not in cogs_total)
+            forecast.cogs_discounts = Math.round((grossServings - netServings) * 100) / 100;
             forecast.cogs_total = Math.round(
                 (forecast.cogs_food + forecast.cogs_packaging + forecast.cogs_retail) * 100
             ) / 100;
-            forecast.gross_profit = Math.round((net - forecast.cogs_total) * 100) / 100;
+            forecast.gross_profit = Math.round(
+                (netTotal - forecast.cogs_total - forecast.cogs_discounts) * 100
+            ) / 100;
         }
 
         return dailyForecasts;

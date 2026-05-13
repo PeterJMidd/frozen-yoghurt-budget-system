@@ -202,6 +202,25 @@ const App = {
 
         document.getElementById('filter-state').addEventListener('change', () => this.filterVenueTable());
         document.getElementById('filter-maturity').addEventListener('change', () => this.filterVenueTable());
+
+        const streamFilter = document.getElementById('stream-filter');
+        if (streamFilter) {
+            streamFilter.addEventListener('change', () => {
+                PnlBuilder.streamFilter = streamFilter.value;
+                if (!this.budgetReady) return;
+                // Re-render whichever tab is active so the change is visible immediately
+                const active = document.querySelector('.tab.active')?.dataset?.tab;
+                if (active === 'dashboard') this.renderDashboard();
+                else if (active === 'pnl') this.renderPnlTable();
+                else if (active === 'sales-forecast') {
+                    const v = document.getElementById('forecast-venue-filter').value;
+                    Charts.renderAllSalesCharts(v);
+                    this.renderForecastDiagnostics();
+                }
+                else if (active === 'sales-detail') this.renderSalesDetail();
+                this.updateKPIs();
+            });
+        }
     },
 
     loadSavedConfig() {

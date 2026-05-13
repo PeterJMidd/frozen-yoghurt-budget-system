@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frozen Yoghurt QSR Budget Model</title>
-    <link rel="stylesheet" href="css/styles.css?v=20260513-fy26data">
+    <link rel="stylesheet" href="css/styles.css?v=20260513-streams">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -28,6 +28,14 @@
         <button class="tab" data-tab="pnl">P&L Budget</button>
         <button class="tab" data-tab="dashboard">Dashboard</button>
         <button class="tab" data-tab="export">Export</button>
+        <div class="stream-selector">
+            <label class="stream-label">Revenue Stream:</label>
+            <select id="stream-filter">
+                <option value="all">Both (Servings + Retail)</option>
+                <option value="servings">Servings only</option>
+                <option value="retail">Retail only</option>
+            </select>
+        </div>
     </nav>
 
     <main>
@@ -450,20 +458,20 @@
         <span id="calc-status"></span>
     </footer>
 
-    <script src="js/config.js?v=20260513-fy26data"></script>
-    <script src="js/calendars.js?v=20260513-fy26data"></script>
-    <script src="js/supabase-client.js?v=20260513-fy26data"></script>
-    <script src="js/excel-parser.js?v=20260513-fy26data"></script>
-    <script src="js/weather.js?v=20260513-fy26data"></script>
-    <script src="js/engine/sales-forecast.js?v=20260513-fy26data"></script>
-    <script src="js/engine/labour-calc.js?v=20260513-fy26data"></script>
-    <script src="js/engine/cogs-calc.js?v=20260513-fy26data"></script>
-    <script src="js/engine/rent-calc.js?v=20260513-fy26data"></script>
-    <script src="js/engine/other-pnl-calc.js?v=20260513-fy26data"></script>
-    <script src="js/engine/pnl-builder.js?v=20260513-fy26data"></script>
-    <script src="js/sales-analysis.js?v=20260513-fy26data"></script>
-    <script src="js/charts.js?v=20260513-fy26data"></script>
-    <script src="js/export.js?v=20260513-fy26data"></script>
-    <script src="js/app.js?v=20260513-fy26data"></script>
+    <script src="js/config.js?v=20260513-streams"></script>
+    <script src="js/calendars.js?v=20260513-streams"></script>
+    <script src="js/supabase-client.js?v=20260513-streams"></script>
+    <script src="js/excel-parser.js?v=20260513-streams"></script>
+    <script src="js/weather.js?v=20260513-streams"></script>
+    <script src="js/engine/sales-forecast.js?v=20260513-streams"></script>
+    <script src="js/engine/labour-calc.js?v=20260513-streams"></script>
+    <script src="js/engine/cogs-calc.js?v=20260513-streams"></script>
+    <script src="js/engine/rent-calc.js?v=20260513-streams"></script>
+    <script src="js/engine/other-pnl-calc.js?v=20260513-streams"></script>
+    <script src="js/engine/pnl-builder.js?v=20260513-streams"></script>
+    <script src="js/sales-analysis.js?v=20260513-streams"></script>
+    <script src="js/charts.js?v=20260513-streams"></script>
+    <script src="js/export.js?v=20260513-streams"></script>
+    <script src="js/app.js?v=20260513-streams"></script>
 </body>
 </html>

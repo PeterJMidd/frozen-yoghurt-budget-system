@@ -59,6 +59,10 @@ const PnlBuilder = {
                     budget_month: monthKey,
                     gross_sales: 0,
                     net_sales: 0,
+                    net_sales_servings: 0,
+                    net_sales_retail: 0,
+                    gross_sales_servings: 0,
+                    gross_sales_retail: 0,
                     cogs_food: 0,
                     cogs_packaging: 0,
                     cogs_retail: 0,
@@ -85,6 +89,10 @@ const PnlBuilder = {
             const m = grouped[key];
             m.gross_sales += Number(f.gross_sales || 0);
             m.net_sales += f.net_sales;
+            m.net_sales_servings += Number(f.net_sales_servings || 0);
+            m.net_sales_retail   += Number(f.net_sales_retail || 0);
+            m.gross_sales_servings += Number(f.gross_sales_servings || 0);
+            m.gross_sales_retail   += Number(f.gross_sales_retail || 0);
             m.cogs_food += f.cogs_food;
             m.cogs_packaging += f.cogs_packaging;
             m.cogs_retail += f.cogs_retail;
@@ -147,17 +155,32 @@ const PnlBuilder = {
         return { months, rows };
     },
 
-    getPnlLineItems() {
-        if (!this.otherPnlLineItems.length) return CONFIG.PNL_LINE_ITEMS;
+    // Active revenue stream filter: 'all' (default) | 'servings' | 'retail'
+    // Line items tagged with a `stream` are filtered out when the user has selected
+    // the other stream. Items without a stream tag stay visible in all modes.
+    streamFilter: 'all',
 
-        const contribution = CONFIG.PNL_LINE_ITEMS.find(item => item.key === 'venue_contribution');
-        const base = CONFIG.PNL_LINE_ITEMS.filter(item => item.key !== 'venue_contribution');
-        return [
-            ...base,
-            ...this.otherPnlLineItems,
-            { key: 'other_pnl_total', label: 'Total Other P&L', type: 'subtotal', account_category: 'Other P&L' },
-            contribution
-        ].filter(Boolean);
+    matchesStream(item) {
+        const filter = this.streamFilter || 'all';
+        if (filter === 'all') return true;
+        if (!item.stream) return true;        // stream-agnostic items (subtotals, occupancy, etc.)
+        return item.stream === filter;
+    },
+
+    getPnlLineItems() {
+        const all = (!this.otherPnlLineItems.length)
+            ? CONFIG.PNL_LINE_ITEMS.slice()
+            : (() => {
+                const contribution = CONFIG.PNL_LINE_ITEMS.find(item => item.key === 'venue_contribution');
+                const base = CONFIG.PNL_LINE_ITEMS.filter(item => item.key !== 'venue_contribution');
+                return [
+                    ...base,
+                    ...this.otherPnlLineItems,
+                    { key: 'other_pnl_total', label: 'Total Other P&L', type: 'subtotal', account_category: 'Other P&L' },
+                    contribution
+                ].filter(Boolean);
+            })();
+        return all.filter(item => this.matchesStream(item));
     },
 
     getMonthsForView(venueKey, view) {
@@ -384,6 +407,8 @@ const PnlBuilder = {
 
         const aliases = {
             net_sales: ['Net Sales', 'Total Revenue', 'Sales', 'Trade Revenue', 'Revenue'],
+            net_sales_servings: ['Net Sales - Servings', 'Servings Sales', 'Yogurt Sales', 'Net Sales Servings'],
+            net_sales_retail: ['Net Sales - Retail', 'Retail Sales', 'Net Sales Retail', 'Net Retail Sales'],
             gross_sales: ['Gross Sales', 'Gross Revenue'],
             cogs_food: ['COGS - Food', 'COGS Food', 'Food COGS', 'Cost of Sales - Food', 'Servings Cost', 'Food Cost'],
             cogs_packaging: ['COGS - Packaging', 'Packaging COGS', 'Packaging Cost', 'Packaging'],
@@ -429,6 +454,7 @@ const PnlBuilder = {
     },
 
     getNetworkKPIs() {
+        const filter = this.streamFilter || 'all';
         const totals = {
             net_sales: 0,
             cogs_total: 0,
@@ -439,9 +465,25 @@ const PnlBuilder = {
             venue_contribution: 0
         };
         for (const m of this.monthlySummary) {
-            totals.net_sales += m.net_sales;
-            totals.cogs_total += m.cogs_total;
-            totals.gross_profit += m.gross_profit;
+            // Pick the sales base by stream
+            const sales = filter === 'servings' ? (m.net_sales_servings || 0)
+                        : filter === 'retail' ? (m.net_sales_retail || 0)
+                        : m.net_sales;
+            totals.net_sales += sales;
+            // Pick stream-relevant COGS portions
+            if (filter === 'retail') {
+                totals.cogs_total += (m.cogs_retail || 0);
+                totals.gross_profit += (m.net_sales_retail || 0) - (m.cogs_retail || 0);
+            } else if (filter === 'servings') {
+                const cogs_serv = (m.cogs_food || 0) + (m.cogs_packaging || 0);
+                totals.cogs_total += cogs_serv;
+                const disc_giveback = (m.cogs_discounts || 0);
+                totals.gross_profit += (m.net_sales_servings || 0) - cogs_serv - disc_giveback;
+            } else {
+                totals.cogs_total += m.cogs_total;
+                totals.gross_profit += m.gross_profit;
+            }
+            // Labour / Occupancy / Other / Contribution are stream-agnostic
             totals.labour_total += m.labour_total;
             totals.occupancy_total += m.occupancy_total;
             totals.other_pnl_total += m.other_pnl_total || 0;
@@ -453,7 +495,8 @@ const PnlBuilder = {
             gpPct: totals.net_sales ? (totals.gross_profit / totals.net_sales) * 100 : 0,
             labourPct: totals.net_sales ? (totals.labour_total / totals.net_sales) * 100 : 0,
             occupancyPct: totals.net_sales ? (totals.occupancy_total / totals.net_sales) * 100 : 0,
-            contributionPct: totals.net_sales ? (totals.venue_contribution / totals.net_sales) * 100 : 0
+            contributionPct: totals.net_sales ? (totals.venue_contribution / totals.net_sales) * 100 : 0,
+            stream: filter
         };
     },
 

@@ -457,6 +457,27 @@ footer {
     justify-content: space-between;
 }
 
+/* Stream selector (in tab nav) */
+.stream-selector {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+}
+.stream-selector .stream-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.stream-selector select {
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+}
+nav.tabs { display: flex; align-items: center; }
+
 /* Forecast diagnostics + upload-status warning state */
 .forecast-api-status {
     font-size: 12px;
