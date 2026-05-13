@@ -10,30 +10,22 @@ const SalesForecastEngine = {
     useApi: false,
     apiCallStats: { batches: 0, retries: 0, failures: 0, lastError: null, totalMs: 0 },
 
-    // Collapse multi-stream daily history into a single daily record per (venue, date).
-    // Returns { records, retailShareByVenue }.
+    // Parser now emits one record per (venue, date) with stream amounts as fields.
+    // This helper just computes the per-venue retail share for forecasting splits.
+    // Returns { records, retailShareByVenue } where records is the input as-is.
     collapseStreams(salesHistory) {
-        const byKey = new Map();
-        const streamTotals = {};   // venueKey -> { servings, retail }
+        const streamTotals = {};
         for (const s of salesHistory) {
-            const k = `${s.venue_key}|${s.sale_date}`;
-            const cur = byKey.get(k) || {
-                venue_key: s.venue_key, venue_name: s.venue_name,
-                sale_date: s.sale_date, gross_sales: 0
-            };
-            cur.gross_sales += Number(s.gross_sales || 0);
-            byKey.set(k, cur);
-            const stream = String(s.stream || 'servings').toLowerCase();
             if (!streamTotals[s.venue_key]) streamTotals[s.venue_key] = { servings: 0, retail: 0 };
-            if (stream === 'retail') streamTotals[s.venue_key].retail += Number(s.gross_sales || 0);
-            else streamTotals[s.venue_key].servings += Number(s.gross_sales || 0);
+            streamTotals[s.venue_key].servings += Number(s.gross_sales_servings ?? s.gross_sales ?? 0);
+            streamTotals[s.venue_key].retail   += Number(s.gross_sales_retail ?? 0);
         }
         const retailShare = {};
         for (const [vk, t] of Object.entries(streamTotals)) {
             const total = t.servings + t.retail;
             retailShare[vk] = total > 0 ? Math.max(0, Math.min(0.5, t.retail / total)) : 0;
         }
-        return { records: [...byKey.values()], retailShareByVenue: retailShare };
+        return { records: salesHistory, retailShareByVenue: retailShare };
     },
 
     buildSeasonality(salesHistory, venueDetails) {
@@ -179,8 +171,11 @@ const SalesForecastEngine = {
             return;
         }
 
+        // Collapse multi-stream sales history (Servings + Retail) to one record per
+        // (venue, date) — Prophet/SARIMA must receive a single time series per venue.
+        const collapsed = this.collapseStreams(salesHistory);
         const grouped = {};
-        for (const s of salesHistory) {
+        for (const s of collapsed.records) {
             if (!grouped[s.venue_key]) grouped[s.venue_key] = [];
             grouped[s.venue_key].push(s);
         }

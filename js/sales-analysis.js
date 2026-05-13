@@ -143,6 +143,8 @@ const SalesAnalysisEngine = {
     },
 
     salesHistoryMap() {
+        // Parser now emits one record per (venue, date) with combined gross_sales
+        // (servings + retail), so a simple assign works without losing streams.
         const map = {};
         for (const row of ExcelParser.uploads.sales_history?.records || []) {
             if (!map[row.venue_key]) map[row.venue_key] = {};
